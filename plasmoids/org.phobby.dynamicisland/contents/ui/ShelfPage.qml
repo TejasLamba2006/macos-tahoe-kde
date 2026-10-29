@@ -88,7 +88,7 @@ Item {
 
     function kdeConnectShare(localPath: string): void {
         if (!core) return;
-        core.startDetached("sh", ["-c", "dev=$(kdeconnect-cli -a --id-only 2>/dev/null | head -1); if [ -n \"$dev\" ]; then kdeconnect-cli -d \"$dev\" --share \"" + localPath + "\"; else localsend \"" + localPath + "\"; fi"]);
+        core.startDetached("@HOME@/.local/bin/macos-phone-share", [localPath]);
     }
 
     function toggleContinuityCamera(facing: string): void {

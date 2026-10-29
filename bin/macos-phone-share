@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# ponytail: shares file to phone via KDE Connect -> Bluetooth OBEX (bluedevil-sendfile) -> LocalSend
+set -euo pipefail
+
+FILE="$1"
+
+# 1. Try KDE Connect if paired & reachable
+DEV=$(kdeconnect-cli -a --id-only 2>/dev/null | head -1 || true)
+if [ -n "$DEV" ]; then
+    kdeconnect-cli -d "$DEV" --share "$FILE"
+    ~/.local/bin/island-push --flash --title "AirDrop (KDE Connect)" --subtitle "Sent $(basename "$FILE") to Phone" --icon smartphone-symbolic --color green --duration 3500 2>/dev/null || true
+    exit 0
+fi
+
+# 2. Try Bluetooth OBEX Object Push directly to connected phone (no app needed on Android!)
+BT_MAC=$(bluetoothctl devices Connected 2>/dev/null | awk '{print $2}' | head -1 || true)
+if [ -n "$BT_MAC" ] && command -v bluedevil-sendfile >/dev/null 2>&1; then
+    bluedevil-sendfile -u "/org/bluez/hci0/dev_${BT_MAC//:/_}" -f "$FILE" >/dev/null 2>&1 &
+    ~/.local/bin/island-push --flash --title "Bluetooth AirDrop" --subtitle "Sending $(basename "$FILE") to Phone" --icon network-bluetooth-symbolic --color blue --duration 3500 2>/dev/null || true
+    exit 0
+fi
+
+# 3. Fallback to LocalSend GUI
+exec localsend "$FILE"
