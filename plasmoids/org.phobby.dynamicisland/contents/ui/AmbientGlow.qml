@@ -78,5 +78,5 @@ Item {
 
     // What IslandShape draws.
     readonly property real strength: Math.min(1, breath + 0.6 * pop)
-    readonly property real bodyScale: 1 + 0.04 * pop
+    readonly property real bodyScale: 1.0
 }

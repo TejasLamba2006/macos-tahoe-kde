@@ -66,11 +66,11 @@ Item {
         active: shape.glowShown > 0.001
         sourceComponent: RectangularShadow {
             radius: shape.radius
-            color: shape.glowColor
-            blur: 7 + 6 * shape.glowStrength
-            spread: 1 + 2 * shape.glowStrength
-            offset.y: 2 + blur + spread - 6
-            opacity: shape.glowShown * (0.35 + 0.65 * shape.glowStrength)
+            color: shape.glowColor.r + shape.glowColor.g + shape.glowColor.b < 0.15 ? "#5e5ce6" : shape.glowColor
+            blur: 5 + 4 * shape.glowStrength
+            spread: 1 + 1.5 * shape.glowStrength
+            offset.y: 2
+            opacity: shape.glowShown * (0.35 + 0.55 * shape.glowStrength)
         }
     }
 

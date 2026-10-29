@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ponytail: macOS Continuity Camera controller — auto-discovers/pairs Wireless ADB and streams phone camera to /dev/video9
+# ponytail: macOS Continuity Camera controller — supports both QR Code scanning and manual IP:Port + 6-digit code pairing
 set -euo pipefail
 
 PID_FILE="/run/user/$(id -u)/continuity-camera.pid"
@@ -28,7 +28,6 @@ ensure_adb() {
     if adb get-state >/dev/null 2>&1; then
         return 0
     fi
-    # Check mDNS for already-paired _adb-tls-connect._tcp
     local conn
     conn=$(adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF}' | head -1 || true)
     if [ -n "$conn" ]; then
@@ -38,32 +37,8 @@ ensure_adb() {
         fi
     fi
 
-    # Prompt user for one-time Wireless Debugging Pairing (IP:Port + 6-digit code) or IP:Port connect
-    local ans
-    ans=$(kdialog --title "macOS Continuity Camera — Wireless ADB Setup" \
-        --inputbox "On your Android phone:\n1. Open Settings → Developer options → Wireless debugging\n2. Tap 'Pair device with pairing code'\n3. Enter the IP:Port and 6-digit code below (separated by a space), OR just IP:Port if already paired:\n\nExample: 192.168.1.33:39123 482910" "" 2>/dev/null || true)
-    if [ -z "$ans" ]; then
-        return 1
-    fi
-    local addr code
-    read -r addr code <<< "$ans"
-    if [ -n "${code:-}" ]; then
-        adb pair "$addr" "$code" >/dev/null 2>&1 || true
-        sleep 1
-        local new_conn
-        new_conn=$(adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF}' | head -1 || true)
-        if [ -n "$new_conn" ]; then
-            adb connect "$new_conn" >/dev/null 2>&1 || true
-        else
-            local ip_only="${addr%%:*}"
-            local port_ans
-            port_ans=$(kdialog --title "macOS Continuity Camera" --inputbox "Paired! Now enter the main 'IP address & Port' shown on the Wireless debugging screen:" "${ip_only}:" 2>/dev/null || true)
-            [ -n "$port_ans" ] && adb connect "$port_ans" >/dev/null 2>&1 || true
-        fi
-    else
-        adb connect "$addr" >/dev/null 2>&1 || true
-    fi
-    adb get-state >/dev/null 2>&1
+    # Launch unified QR Code + Manual Pairing Code GUI dialog
+    ~/.local/bin/macos-adb-pair.py
 }
 
 start_cam() {
@@ -71,7 +46,7 @@ start_cam() {
         stop_cam
     fi
     if ! ensure_adb; then
-        ~/.local/bin/island-push --flash --title "Continuity Camera" --subtitle "Wireless ADB not paired yet" --icon camera-web-symbolic --color orange --duration 3500 2>/dev/null || true
+        ~/.local/bin/island-push --flash --title "Continuity Camera" --subtitle "Wireless ADB pairing cancelled" --icon camera-web-symbolic --color orange --duration 3500 2>/dev/null || true
         echo "no-device"
         exit 1
     fi
