@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ponytail: watches PipeWire screen-sharing (#1 Auto-DND, #3 Presentation Mode), writes /run/user/UID/macos-privacy-status.json for top bar dots, and keeps WhatsApp Web Privacy Blur active (#5)
+# ponytail: watches PipeWire screen-sharing (debounced 2-tick start / 3-tick stop), writes /run/user/UID/macos-privacy-status.json for top bar dots, and keeps WhatsApp Web Privacy Blur active (#5)
 import base64
 import glob
 import json
@@ -149,7 +149,7 @@ def poll_privacy_status():
                 if app_name and app_name not in mic_apps and "Peak detect" not in app_name:
                     mic_apps.append(app_name)
             elif mc in ("Stream/Input/Video", "Stream/Output/Video"):
-                if any(k in node_name.lower() for k in ("kwin", "xdpw", "screen", "portal")):
+                if any(k in node_name.lower() for k in ("kwin", "xdpw", "screen", "portal", "webrtc")):
                     if app_name and app_name not in screen_apps:
                         screen_apps.append(app_name)
             elif mc == "Video/Source":
@@ -212,11 +212,22 @@ def main():
     bus = dbus.SessionBus()
     inhibit_cookie = None
     was_sharing = False
+    share_streak = 0
+    stop_streak = 0
 
     while True:
         ensure_whatsapp_blur()
-        sharing = poll_privacy_status()
-        if sharing and not was_sharing:
+        raw_sharing = poll_privacy_status()
+
+        if raw_sharing:
+            share_streak += 1
+            stop_streak = 0
+        else:
+            stop_streak += 1
+            share_streak = 0
+
+        # Require 2 consecutive ticks (4s) to activate, and 3 consecutive ticks (6s) to deactivate
+        if share_streak >= 2 and not was_sharing:
             try:
                 notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
                 iface = dbus.Interface(notif, "org.freedesktop.Notifications")
@@ -227,7 +238,7 @@ def main():
             set_desktop_icons_visible(False)
             was_sharing = True
 
-        elif not sharing and was_sharing:
+        elif stop_streak >= 3 and was_sharing:
             if inhibit_cookie is not None:
                 try:
                     notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")

@@ -1,6 +1,6 @@
 # 02. Apple TV Aerial Wallpapers & macOS Tahoe Lock Screen
 
-![Lock Screen](../assets/gifs/03-lockscreen-tahoe.gif)
+![Lock Screen](../assets/screenshots/06-lockscreen-tahoe.png)
 
 ## 1. Bypassing the 24-Hour Download Limit in `plasma6-wallpapers-aerial`
 
