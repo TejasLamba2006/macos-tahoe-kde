@@ -18,8 +18,15 @@ Here is what is already working and what we are looking at next. If you want one
 - [x] Private Wi-Fi MAC randomization & Encrypted DNS-over-TLS (`etc/`)
 
 ## Up Next (Open for Requests / PRs)
-- [ ] **Quick Look (`Spacebar` Preview in Dolphin):** Instant file/image/PDF/code preview window when pressing `Space` in Dolphin, matching Finder's Quick Look.
-- [ ] **macOS Screenshot HUD (`Meta+Shift+3 / 4 / 5`):** Floating thumbnail in the bottom-right corner after taking a screenshot that can be dragged directly into apps or clicked to mark up.
+- [ ] **Dock "Downloads Stack" Fan / Grid Popup (`org.macos.downloads`):** Clicking Downloads in the dock pops up a frosted 8-item grid of newest files above the dock with 1-click open and `"Open in Finder…"`.
+- [ ] **Quick Look (`Spacebar` / `Meta+Y` Preview in Dolphin):** Instant borderless preview window for images, PDFs, video, audio, and code when pressing `Space` in Dolphin.
+- [ ] **Finder Right-Click "Quick Actions" (`~/.local/share/kio/servicemenus/`):** Context menu actions to convert images (`PNG`/`JPG`/`WebP`), resize 50%, rotate, extract audio (`MP3`), and copy full path.
+- [ ] **macOS `Cmd+Tab` Large App Icon Horizontal Switcher:** Replace Breeze vertical window list with a centered horizontal row of large app icons (`big_icons` TabBox).
+- [ ] **macOS Screenshot Workflow (`Meta+Shift+3 / 4 / 5`):** Save `Screen Shot YYYY-MM-DD at HH.MM.SS.png` to `~/Desktop` + auto-copy to clipboard + camera shutter sound + floating corner thumbnail.
+- [ ] **Top-Right Notification Banners & MagSafe Charging Chime:** Slide notifications in at top-right below the menu bar and trigger the MagSafe chime on AC plug-in.
+- [ ] **Finder Keyboard Navigation in Dolphin:** `Cmd+Backspace` move to Trash, `Cmd+Up` parent folder, `Cmd+Down` open selected item, and `ShowFullPath=true`.
+- [ ] **Emoji Picker (`Ctrl+Meta+Space`) & "Force Quit Applications" Dialog (`Alt+Meta+Esc`):** Floating Force Quit window listing running apps alongside `plasma-emojier`.
+- [ ] **macOS Hot Corners:** Bottom-Right for `ShowDesktop` and Bottom-Left for `LockScreen` with `150ms` edge delay.
 - [ ] **Stage Manager / App Exposé Gesture:** 3-finger / 4-finger trackpad swipe gestures mapped to KWin Overview and per-app window spread.
 - [ ] **AirDrop Equivalent in Menu Bar (`LocalSend` / `KDE Connect` Quick Drop):** Drag-and-drop file tray target in the top bar or Dynamic Island.
 - [ ] **Per-Window Screen Capture Exclusion Mask:** Hiding specific floating notes or password managers from KWin's PipeWire screencast stream while keeping them visible on your physical monitor.
