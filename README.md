@@ -6,9 +6,13 @@ Most Linux-to-macOS guides stop after installing the WhiteSur theme and moving a
 
 This repo contains the actual scripts, QML overrides, KWin rules, custom Plasma 6 applets, and binary patches we wrote to fix those gaps.
 
-![Desktop Overview](assets/screenshots/01-desktop-overview.png)
+### Full Showcase (Edited in [Concat](https://github.com/jub0t/Concat) via MCP — [`assets/showcase.mp4`](assets/showcase.mp4))
 
-![Second Monitor Aerial Flyover](assets/screenshots/07-widgets-liquid-glass.png)
+![Full Showcase GIF](assets/gifs/00-full-showcase.gif)
+
+![Live Desktop & Liquid Glass Refraction](assets/gifs/02-widgets-refraction.gif)
+
+![Second Monitor Aerial Flyover](assets/gifs/04-dualmonitor-aerial.gif)
 
 ---
 
@@ -51,7 +55,7 @@ We replaced the stock widgets with three custom Plasma 6 applets (`org.macos.doc
 
 ### 4. macOS Sequoia / Tahoe Lock Screen & SDDM Login (`shell-overrides/lockscreen/`, `sddm/`)
 
-![macOS Tahoe Lock Screen](assets/screenshots/06-lockscreen-tahoe.png)
+![macOS Tahoe Lock Screen](assets/gifs/03-lockscreen-tahoe.gif)
 
 - **Top Clock & Date:** `SF Pro Display` (`22px DemiBold` date stacked tight above `112px Bold` time at `9.5%` from top) with soft drop shadows.
 - **Bottom Avatar & Frosted Password Pill:** `56x56` circular avatar, user full name, `196x30` translucent pill (`Enter Password` placeholder, circular `→` submit button that fades in when typing), and `"Touch ID or Enter Password"` caption.
