@@ -61,9 +61,12 @@ cp -r "$REPO_DIR"/chrome-ext/* "$USER_HOME/.local/share/whatsapp-privacy-ext/"
 
 echo "==> Installing systemd user services..."
 mkdir -p "$USER_HOME/.config/systemd/user"
-for svc in "$REPO_DIR"/systemd/*; do
-    apply_template "$svc" "$USER_HOME/.config/systemd/user/$(basename "$svc")"
+for svc in "$REPO_DIR"/systemd/*.service "$REPO_DIR"/systemd/*.timer; do
+    [ -f "$svc" ] && apply_template "$svc" "$USER_HOME/.config/systemd/user/$(basename "$svc")"
 done
+mkdir -p "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d"
+cp "$REPO_DIR/systemd/plasma-plasmashell.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d/"
+cp "$REPO_DIR/systemd/plasma-kwin_wayland.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d/" 
 systemctl --user daemon-reload
 systemctl --user enable --now macos-multiscreen-dock.service macos-screenshare-privacy.service google-ical-sync.timer
 
