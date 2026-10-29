@@ -50,7 +50,7 @@ start_cam() {
         echo "no-device"
         exit 1
     fi
-    nohup scrcpy --video-source=camera --camera-facing="$FACING" --camera-size=1920x1080 --v4l2-sink="$V4L2_DEV" --no-playback --no-audio >/dev/null 2>&1 &
+    nohup scrcpy --video-source=camera --camera-facing="$FACING" --camera-size=1920x1080 --v4l2-sink="$V4L2_DEV" --no-window --no-audio >/dev/null 2>&1 &
     echo $! > "$PID_FILE"
     ~/.local/bin/island-push --id continuity-cam --category recording --title "Continuity Camera" --subtitle "Streaming ($FACING) → /dev/video9" --icon camera-video-symbolic --color green --priority 90 2>/dev/null || true
     echo "started:$FACING"
