@@ -17,20 +17,29 @@ apply_template() {
         "$src" > "$dst"
 }
 
-echo "==> Installing user scripts to ~/.local/bin..."
-mkdir -p "$USER_HOME/.local/bin"
+echo "==> Installing user scripts & 3-finger gestures..."
+mkdir -p "$USER_HOME/.local/bin" "$USER_HOME/.local/share/three-finger-gestures"
 for f in "$REPO_DIR"/bin/*; do
-    dst="$USER_HOME/.local/bin/$(basename "$f")"
-    apply_template "$f" "$dst"
-    chmod +x "$dst"
+    if [ -f "$f" ]; then
+        dst="$USER_HOME/.local/bin/$(basename "$f")"
+        apply_template "$f" "$dst"
+        chmod +x "$dst"
+    fi
 done
+if [ -d "$REPO_DIR/bin/three-finger-gestures" ]; then
+    cp -r "$REPO_DIR"/bin/three-finger-gestures/* "$USER_HOME/.local/share/three-finger-gestures/"
+fi
 
-echo "==> Installing custom macOS Plasmoids (dockseparator, downloads, trash, privacydots)..."
+echo "==> Installing custom & patched macOS Plasmoids..."
 mkdir -p "$USER_HOME/.local/share/plasma/plasmoids"
-cp -r "$REPO_DIR"/plasmoids/org.macos.* "$USER_HOME/.local/share/plasma/plasmoids/"
-for qml in "$USER_HOME"/.local/share/plasma/plasmoids/org.macos.*/contents/ui/main.qml; do
-    sed -i -e "s|@HOME@|$USER_HOME|g" "$qml"
-done
+cp -r "$REPO_DIR"/plasmoids/* "$USER_HOME/.local/share/plasma/plasmoids/"
+find "$USER_HOME/.local/share/plasma/plasmoids" -name "*.qml" -exec sed -i "s|@HOME@|$USER_HOME|g" {} +
+
+echo "==> Installing patched MacTahoe-Dark Plasma Theme, WhiteSur Aurorae & Color Scheme..."
+mkdir -p "$USER_HOME/.local/share/plasma/desktoptheme" "$USER_HOME/.local/share/aurorae/themes" "$USER_HOME/.local/share/color-schemes"
+cp -r "$REPO_DIR/themes/MacTahoe-Dark" "$USER_HOME/.local/share/plasma/desktoptheme/"
+cp -r "$REPO_DIR/themes/WhiteSur-dark-opaque" "$USER_HOME/.local/share/aurorae/themes/"
+cp "$REPO_DIR/themes/MacTahoeDark.colors" "$USER_HOME/.local/share/color-schemes/"
 
 echo "==> Installing macOS Lock Screen & Logout Shell Overrides..."
 SHELL_DIR="$USER_HOME/.local/share/plasma/shells/org.kde.plasma.desktop"
@@ -48,25 +57,55 @@ for f in Logout.qml LogoutControls.qml LogoutButton.qml; do
     apply_template "$REPO_DIR/shell-overrides/logout/$f" "$SHELL_DIR/contents/logout/$f"
 done
 
-echo "==> Installing KWin scripts, rules, Konsole profile, Sound theme, and WhatsApp extension..."
+echo "==> Installing KWin scripts, rules, Konsole/Yakuake profiles, EasyEffects presets, Sound theme & WhatsApp extension..."
 mkdir -p "$USER_HOME/.local/share/kwin/scripts"
 cp -r "$REPO_DIR/kwin/chrome-pip-top" "$USER_HOME/.local/share/kwin/scripts/"
+cp "$REPO_DIR/kwin/kwinrulesrc" "$USER_HOME/.config/kwinrulesrc"
+
 mkdir -p "$USER_HOME/.local/share/konsole"
-cp "$REPO_DIR"/konsole/* "$USER_HOME/.local/share/konsole/"
+cp "$REPO_DIR/konsole/macOS.profile" "$REPO_DIR/konsole/macOS.colorscheme" "$USER_HOME/.local/share/konsole/"
+cp "$REPO_DIR/konsole/yakuakerc" "$USER_HOME/.config/yakuakerc"
+
+mkdir -p "$USER_HOME/.local/share/easyeffects/output"
+cp "$REPO_DIR"/easyeffects/*.json "$USER_HOME/.local/share/easyeffects/output/"
+
 mkdir -p "$USER_HOME/.local/share/sounds/macOS/stereo"
 cp -rn /usr/share/sounds/ocean/stereo/* "$USER_HOME/.local/share/sounds/macOS/stereo/" 2>/dev/null || true
 cp -r "$REPO_DIR"/sounds/* "$USER_HOME/.local/share/sounds/macOS/"
+
 mkdir -p "$USER_HOME/.local/share/whatsapp-privacy-ext"
 cp -r "$REPO_DIR"/chrome-ext/* "$USER_HOME/.local/share/whatsapp-privacy-ext/"
 
-echo "==> Installing systemd user services..."
+echo "==> Applying KWin Window Decorations (traffic lights on left), Blur, Rounded Corners, Magic Lamp & Shake Cursor..."
+kwriteconfig6 --file kwinrc --group "org.kde.kdecoration2" --key "library" "org.kde.kwin.aurorae"
+kwriteconfig6 --file kwinrc --group "org.kde.kdecoration2" --key "theme" "__aurorae__svg__WhiteSur-dark-opaque"
+kwriteconfig6 --file kwinrc --group "org.kde.kdecoration2" --key "ButtonsOnLeft" "XIA"
+kwriteconfig6 --file kwinrc --group "org.kde.kdecoration2" --key "ButtonsOnRight" ""
+kwriteconfig6 --file kwinrc --group "Plugins" --key "better_blur_dxEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "kwin4_effect_shapecornersEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "magiclampEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "shakecursorEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "chrome-pip-topEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurDocks" "true"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurMenus" "true"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurDecorations" "true"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurMatching" "true"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurStrength" "12"
+kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "NoiseStrength" "1"
+kwriteconfig6 --file kwinrc --group "Round-Corners" --key "Size" "12"
+kwriteconfig6 --file kwinrc --group "Round-Corners" --key "InactiveCornerRadius" "12"
+kwriteconfig6 --file kdeglobals --group "Sounds" --key "Theme" "macOS"
+kwriteconfig6 --file kdeglobals --group "Sounds" --key "Enable" "true"
+kwriteconfig6 --file plasmarc --group "Theme" --key "name" "MacTahoe-Dark"
+
+echo "==> Installing systemd user services & LimitNOFILE drop-ins..."
 mkdir -p "$USER_HOME/.config/systemd/user"
 for svc in "$REPO_DIR"/systemd/*.service "$REPO_DIR"/systemd/*.timer; do
     [ -f "$svc" ] && apply_template "$svc" "$USER_HOME/.config/systemd/user/$(basename "$svc")"
 done
 mkdir -p "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d"
 cp "$REPO_DIR/systemd/plasma-plasmashell.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d/"
-cp "$REPO_DIR/systemd/plasma-kwin_wayland.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d/" 
+cp "$REPO_DIR/systemd/plasma-kwin_wayland.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d/"
 systemctl --user daemon-reload
 systemctl --user enable --now macos-multiscreen-dock.service macos-screenshare-privacy.service google-ical-sync.timer
 
@@ -92,4 +131,6 @@ if [ -d /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui ];
     sudo "$REPO_DIR/patches/patch-aerial-core.py"
 fi
 
-echo "==> Done! Run ~/.local/bin/macos-multiscreen-sync.sh to sync all monitors."
+qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || true
+"$USER_HOME/.local/bin/macos-multiscreen-sync.sh" || true
+echo "==> Done! Your KDE Plasma 6 Wayland desktop is now configured as macOS Tahoe."

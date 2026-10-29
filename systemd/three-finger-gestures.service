@@ -1,0 +1,11 @@
+[Unit]
+Description=Three-finger swipe gestures (macOS Mission Control / App Switch)
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/python3 @HOME@/.local/share/three-finger-gestures/three-finger-gestures.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

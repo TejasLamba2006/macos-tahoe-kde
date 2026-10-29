@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <!-- Appearance (Settings → Appearance; see Styles.qml) -->
+    <!-- 0 = follow the system's colours, 1 = the custom style -->
+    <entry name="appearanceMode" type="Int"><default>1</default></entry>
+    <!-- Following the system: 0 = the colour scheme and its accent colour, 1 = the Plasma style (like the panel) -->
+    <entry name="followSource" type="Int"><default>0</default></entry>
+    <!-- JSON: what is set by hand while following the system (opacity, blur, size, roundness, border, shadow); empty = as it comes -->
+    <entry name="followStyle" type="String"><default></default></entry>
+    <!-- JSON: the custom style; fresh installs use Symbiot Black; empty preserves legacy Oxygen -->
+    <entry name="customStyle" type="String"><default>{"preset":"symbiot"}</default></entry>
+    <!-- JSON list of { name, style }: saved custom styles; and the name of the one in use -->
+    <entry name="styleProfiles" type="String"><default>[]</default></entry>
+    <entry name="activeProfile" type="String"><default></default></entry>
+    <!-- Written by the settings page while it is open: what it is editing, shown at once (never kept) -->
+    <entry name="previewActive" type="Bool"><default>false</default></entry>
+    <entry name="previewMode" type="Int"><default>0</default></entry>
+    <entry name="previewSource" type="Int"><default>0</default></entry>
+    <entry name="previewStyle" type="String"><default></default></entry>
+    <entry name="previewTop" type="Int"><default>6</default></entry>
+    <entry name="previewOffsetX" type="Int"><default>0</default></entry>
+    <entry name="previewFollowStyle" type="String"><default></default></entry>
+    <!-- Written by the widget: the applied colour scheme, "background,text,accent" (for the settings page) -->
+    <entry name="systemScheme" type="String"><default></default></entry>
+    <!-- Earlier appearance settings, only read to make the first custom style -->
+    <entry name="surfaceOpacity" type="Int">
+      <default>82</default>
+      <min>30</min>
+      <max>100</max>
+    </entry>
+    <entry name="blurEnabled" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- (earlier) 0 = follow Plasma color scheme, 1 = always dark, 2 = always light -->
+    <entry name="themeMode" type="Int">
+      <default>1</default>
+    </entry>
+    <entry name="showClock" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- How the time is written: 0 as the system (its region's time format), 1 always 24 hours, 2 always 12 hours -->
+    <entry name="clockFormat" type="Int"><default>0</default></entry>
+    <entry name="topMargin" type="Int">
+      <default>6</default>
+    </entry>
+    <!-- While following the system: px from the centre (a custom style brings its own, like its distance from the top) -->
+    <entry name="horizontalOffset" type="Int">
+      <default>0</default>
+      <min>-100</min>
+      <max>100</max>
+    </entry>
+    <entry name="avoidPanels" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- The layout (Settings → Appearance → Layout): 0 = the notch, welded to the top edge of the screen, over a
+         panel there; 1 = the oval layout, the rounded island below the edge -->
+    <entry name="islandLayout" type="Int"><default>0</default></entry>
+    <!-- Builds before the layout had a switch for the notch; read once, when the settings are brought up to
+         settingsSchema 1 (SettingsMigration.js): who had it on keeps the notch, everyone else the oval layout -->
+    <entry name="notchMode" type="Bool"><default>false</default></entry>
+    <!-- Written by the widget: the version of these settings (SettingsMigration.js) -->
+    <entry name="settingsSchema" type="Int"><default>0</default></entry>
+    <!-- Written by the widget: 0 = nothing to say, 1 = to say once that there is a notch layout now, 2 = said -->
+    <entry name="layoutNotice" type="Int"><default>0</default></entry>
+    <!-- 0 = black, 1 = the island's own colours (the theme, its gradient too), opaque; 2 = the island's own look (material, see-through, blur) -->
+    <entry name="notchColor" type="Int"><default>1</default></entry>
+    <!-- Independent notch edge, drawn inside the sides and lower corners. -->
+    <entry name="notchBorderEnabled" type="Bool"><default>true</default></entry>
+    <entry name="notchBorderWidth" type="Int"><default>1</default><min>1</min><max>8</max></entry>
+    <entry name="notchBorderColor" type="String"><default>#4c566a</default></entry>
+    <entry name="notchBorderOpacity" type="Int"><default>70</default><min>0</min><max>100</max></entry>
+    <!-- Before settings version 2: what the notch did over a window that fills the screen (as fullscreenMode).
+         Read once by SettingsMigration.js, and written back if that step is undone. -->
+    <entry name="notchFullscreen" type="Int"><default>0</default></entry>
+    <!-- Full-screen mode, both layouts: while a window fills the island's screen. 0 = hide, 1 = normal (as it is),
+         2 = peek (drawn up to the top edge, a small part shows; the pointer there opens it), 3 = shrink (the notch
+         draws in to a small nub at the edge; the pointer on it opens it) -->
+    <entry name="fullscreenMode" type="Int"><default>0</default><min>0</min><max>3</max></entry>
+    <!-- Peeking: how much of it shows (px), how long the pointer rests on it before it opens (ms), how wide the
+         place at the edge that opens it is (px at 100 % size; 0 = as wide as the island), and whether an incoming
+         call opens it (a recording, the microphone and a critical warning only colour the strip) -->
+    <entry name="peekSize" type="Int"><default>4</default><min>2</min><max>16</max></entry>
+    <entry name="peekDelay" type="Int"><default>150</default><min>0</min><max>1000</max></entry>
+    <entry name="peekWidth" type="Int"><default>0</default><min>0</min><max>1200</max></entry>
+    <entry name="peekEvents" type="Bool"><default>true</default></entry>
+    <!-- Also for a maximised window, as for one that fills the screen (hide, peek, shrink); a maximised window
+         reaching under the notch too. Off: above a top panel a maximised window never meets the island. -->
+    <entry name="peekMaximized" type="Bool"><default>false</default></entry>
+    <!-- Peek or shrink on the desktop too: once nothing has gone on in the island for peekIdleDelay seconds
+         it is drawn up or in as over a full-screen window; whatever comes brings it back -->
+    <entry name="peekIdle" type="Bool"><default>false</default></entry>
+    <entry name="peekIdleDelay" type="Int"><default>10</default><min>2</min><max>300</max></entry>
+    <!-- Paths given by hand for commands ({ "claude": "/opt/claude/bin/claude" }, "~/" = home), looked at first
+         (Settings › Diagnostics); empty = only where the island looks by itself -->
+    <entry name="commandPaths" type="String"><default></default></entry>
+    <!-- Written by the island: the settings page (and row) to open with the settings window ("configDiagnostics:claude");
+         read and emptied by the settings window -->
+    <entry name="settingsJump" type="String"><default></default></entry>
+    <!-- The first opening's tour (IslandTour.qml) was shown, or skipped; an island that ran before
+         schema 3 has it set by the migration and never sees it; Diagnostics → About empties it -->
+    <entry name="tourShown" type="Bool"><default>false</default></entry>
+    <!-- The notch, peeking or shrunk: also where a window reaches under it (moved up to the edge; maximised only with peekMaximized), as a panel's
+         "Dodge windows"; and its size (percent) and width (px at 100 %) once open over such a window; 0 = as usual -->
+    <entry name="notchDodgeWindows" type="Bool"><default>true</default></entry>
+    <entry name="notchDodgeSize" type="Int"><default>0</default><min>0</min><max>240</max></entry>
+    <entry name="notchDodgeWidth" type="Int"><default>0</default><min>0</min><max>1200</max></entry>
+    <!-- 0 = the screen of the top panel, 1 = the primary screen -->
+    <entry name="notchScreen" type="Int"><default>0</default></entry>
+    <!-- The small notch's width, px at 100 % size (narrower or wider than what it shows; kept on the screen); 0 = as wide as what it shows -->
+    <entry name="notchMaxWidth" type="Int"><default>0</default><min>0</min><max>1200</max></entry>
+    <!-- The open island as wide as the notch, where its width is set wider than the island's own -->
+    <entry name="notchOpenWidth" type="Bool"><default>true</default></entry>
+    <!-- The cat is not shown while the notch is (beside it, it stands on the panel and takes the clicks there) -->
+    <entry name="notchHideCat" type="Bool"><default>false</default></entry>
+    <!-- Its height: 0 = the top panel's (the island's own without one), 1 = notchHeight -->
+    <entry name="notchHeightMode" type="Int"><default>0</default></entry>
+    <entry name="notchHeight" type="Int"><default>36</default><min>24</min><max>72</max></entry>
+    <!-- Small inward curves where the notch meets the edge -->
+    <entry name="notchEars" type="Bool"><default>false</default></entry>
+    <!-- Written by the widget while the notch is on: the top panel's height there, 0 = none, -1 = not known (for the settings page) -->
+    <entry name="notchPanelSeen" type="Int"><default>-1</default></entry>
+    <!-- Written by the widget: the largest size (percent) its screen has room for, 0 = the whole range (for the settings page) -->
+    <entry name="scaleLimitSeen" type="Int"><default>0</default></entry>
+
+    <!-- Written by the widget: this widget's settings were looked at by SettingsKeeper (a new widget reads the kept ones once) -->
+    <entry name="settingsKept" type="Bool"><default>false</default></entry>
+    <!-- The island's own new versions: 0 = never look, 1 = ask before installing, 2 = install by itself -->
+    <entry name="updateMode" type="Int"><default>1</default></entry>
+    <!-- Written by the widget: "version|when" of the last one asked about; the version that ran last -->
+    <entry name="updateAsked" type="String"><default></default></entry>
+    <entry name="installedVersion" type="String"><default></default></entry>
+
+    <!-- Behavior -->
+    <entry name="showNotifications" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="notificationDuration" type="Int">
+      <default>4000</default>
+    </entry>
+    <!-- Dot mode: a click shrinks the island to a small dot, a click on the dot brings the pill back -->
+    <entry name="dotMode" type="Bool"><default>true</default></entry>
+    <!-- whether it is a dot now (kept across restarts) -->
+    <entry name="dotState" type="Bool"><default>false</default></entry>
+    <!-- 0 = as it was left, 1 = always the pill, 2 = always the dot -->
+    <entry name="dotStart" type="Int"><default>0</default></entry>
+    <entry name="dotSize" type="Int"><default>15</default></entry>
+    <entry name="dotHoverExpand" type="Bool"><default>false</default></entry>
+    <!-- 0 = only the dot shows it, 1 = opens for it and returns to the dot, 2 = nothing -->
+    <entry name="dotEvents" type="Int"><default>0</default></entry>
+    <entry name="dotCriticalExpand" type="Bool"><default>true</default></entry>
+    <entry name="hoverDelay" type="Int">
+      <default>120</default>
+    </entry>
+    <entry name="collapseDelay" type="Int">
+      <default>400</default>
+    </entry>
+    <entry name="preferredPlayer" type="String">
+      <default>spotify</default>
+    </entry>
+
+    <!-- Activities -->
+    <!-- Highest first. Categories: privacy, call, recording, event, timer, transfer, media -->
+    <entry name="priorityOrder" type="String">
+      <default>privacy,call,recording,event,timer,transfer,media</default>
+    </entry>
+    <entry name="splitIsland" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="keepMediaVisible" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="eventDuration" type="Int">
+      <default>3000</default>
+    </entry>
+
+    <!-- System events -->
+    <entry name="showPowerEvents" type="Bool"><default>true</default></entry>
+    <entry name="lowBatteryThreshold" type="Int"><default>20</default></entry>
+    <entry name="criticalBatteryThreshold" type="Int"><default>10</default></entry>
+    <entry name="showBluetoothEvents" type="Bool"><default>true</default></entry>
+    <entry name="deviceBatteryThreshold" type="Int"><default>15</default></entry>
+    <entry name="showOsdEvents" type="Bool"><default>true</default></entry>
+    <entry name="showKeyboardEvents" type="Bool"><default>true</default></entry>
+    <entry name="showNetworkEvents" type="Bool"><default>true</default></entry>
+    <entry name="showDndEvents" type="Bool"><default>true</default></entry>
+    <entry name="showRecording" type="Bool"><default>true</default></entry>
+    <entry name="showPrivacy" type="Bool"><default>true</default></entry>
+    <entry name="showUnlock" type="Bool"><default>true</default></entry>
+    <entry name="showJobs" type="Bool"><default>true</default></entry>
+    <entry name="watchDownloads" type="Bool"><default>true</default></entry>
+    <entry name="trackDownloads" type="Bool"><default>true</default></entry>
+    <entry name="trackPackages" type="Bool"><default>true</default></entry>
+    <entry name="trackGit" type="Bool"><default>true</default></entry>
+    <entry name="trackTools" type="Bool"><default>true</default></entry>
+    <entry name="trackBackground" type="Bool"><default>false</default></entry>
+    <entry name="trackAnnounceEnd" type="Bool"><default>true</default></entry>
+    <entry name="trackMinSeconds" type="Int"><default>1</default></entry>
+    <entry name="trackMinKilobytes" type="Int"><default>1024</default></entry>
+    <entry name="trackSettleSeconds" type="Int"><default>3</default></entry>
+    <entry name="trackFolders" type="String"><default></default></entry>
+    <entry name="trackCommandsAdded" type="String"><default></default></entry>
+    <entry name="trackCommandsRemoved" type="String"><default></default></entry>
+    <entry name="showKdeConnect" type="Bool"><default>true</default></entry>
+    <entry name="showQuickSettings" type="Bool"><default>true</default></entry>
+    <entry name="showUpdates" type="Bool"><default>true</default></entry>
+    <!-- Written by the widget: the number of updates already announced -->
+    <entry name="updatesAnnounced" type="Int"><default>0</default></entry>
+    <entry name="showThermalWarning" type="Bool"><default>true</default></entry>
+    <entry name="enableDbusApi" type="Bool"><default>true</default></entry>
+    <entry name="cpuTempThreshold" type="Int"><default>90</default></entry>
+    <entry name="gpuTempThreshold" type="Int"><default>85</default></entry>
+
+    <!-- Time & productivity (end times are epoch ms strings so they survive restarts) -->
+    <entry name="showTools" type="Bool"><default>true</default></entry>
+    <entry name="timerEndsAt" type="String"><default>0</default></entry>
+    <entry name="timerTotal" type="Int"><default>300</default></entry>
+    <entry name="timerPausedRemaining" type="Int"><default>0</default></entry>
+    <entry name="stopwatchStartedAt" type="String"><default>0</default></entry>
+    <entry name="stopwatchElapsed" type="String"><default>0</default></entry>
+    <entry name="stopwatchLaps" type="String"><default>[]</default></entry>
+    <entry name="pomodoroPhase" type="String"><default></default></entry>
+    <entry name="pomodoroEndsAt" type="String"><default>0</default></entry>
+    <entry name="pomodoroRound" type="Int"><default>0</default></entry>
+    <entry name="pomodoroWork" type="Int"><default>25</default></entry>
+    <entry name="pomodoroShortBreak" type="Int"><default>5</default></entry>
+    <entry name="pomodoroLongBreak" type="Int"><default>15</default></entry>
+    <entry name="pomodoroRounds" type="Int"><default>4</default></entry>
+    <!-- Written by the widget: JSON { days: { "YYYY-MM-DD": completed focus rounds }, total, best (longest streak) } -->
+    <entry name="pomodoroStats" type="String"><default></default></entry>
+    <entry name="alarmAt" type="String"><default>0</default></entry>
+    <entry name="alarmTime" type="String"><default>07:00</default></entry>
+    <entry name="alarmLabel" type="String"><default></default></entry>
+    <entry name="timerSoundEnabled" type="Bool"><default>true</default></entry>
+    <entry name="timerSound" type="String"><default>/usr/share/sounds/ocean/stereo/alarm-clock-elapsed.oga</default></entry>
+    <entry name="showCalendar" type="Bool"><default>true</default></entry>
+    <entry name="calendarLeadMinutes" type="Int"><default>15</default></entry>
+    <entry name="calendarLingerMinutes" type="Int"><default>10</default></entry>
+    <entry name="calendarShowAllDay" type="Bool"><default>true</default></entry>
+    <entry name="calendarRefreshMinutes" type="Int"><default>5</default></entry>
+    <!-- Play the timer/alarm sound (Tools tab) when an event starts -->
+    <entry name="calendarSound" type="Bool"><default>true</default></entry>
+    <!-- Written by the widget: JSON { "uid@start": end (ms) } of events dismissed from the island -->
+    <entry name="calendarDismissed" type="String"><default>{}</default></entry>
+    <!-- JSON list of { id, type, url, name, color, enabled }: iCalendar (.ics) links -->
+    <entry name="calendarSources" type="String"><default>[]</default></entry>
+    <!-- Written by the widget: JSON { source id: { t: ms, error } } (shown in the settings) -->
+    <entry name="calendarStatus" type="String"><default>{}</default></entry>
+    <!-- Account for adding events (CalDAV): JSON { server, user, calendars: [{ url, name, color }], defaultUrl }.
+         The password is kept in KWallet, never here. -->
+    <entry name="calendarAccount" type="String"><default>{}</default></entry>
+    <!-- Google account (OAuth): the desktop client registered in Google Cloud, and
+         JSON { user, calendars: [{ id, name, color, writable }] }. The refresh token is kept in KWallet. -->
+    <entry name="googleClientId" type="String"><default></default></entry>
+    <entry name="googleClientSecret" type="String"><default></default></entry>
+    <entry name="googleAccount" type="String"><default>{}</default></entry>
+    <!-- Notes: JSON list of { id, type (joplin|simplenote|memos), name, server, user }.
+         Tokens are kept in KWallet, never here. -->
+    <entry name="showNotes" type="Bool"><default>true</default></entry>
+    <entry name="showClipboard" type="Bool"><default>true</default></entry>
+    <!-- Weather: the page; its place, chosen on the page by name: JSON { name, admin, country,
+         latitude, longitude } ("" = none yet, the page starts empty); the units (0 = °C, km/h, mm;
+         1 = °F, mph, in); the alert for rain, snow and storms, and (written by the widget) what
+         was already announced -->
+    <entry name="showWeather" type="Bool"><default>true</default></entry>
+    <entry name="weatherLocation" type="String"><default></default></entry>
+    <entry name="weatherUnits" type="Int"><default>0</default></entry>
+    <!-- Earlier (the name of the place of Plasma's weather engine): it only starts the first search -->
+    <entry name="weatherPlaceName" type="String"><default></default></entry>
+    <entry name="showWeatherAlerts" type="Bool"><default>true</default></entry>
+    <entry name="weatherAnnounced" type="String"><default></default></entry>
+    <!-- Apps: the page and its shortcuts, JSON list of { id (menu id of the .desktop file), name, icon, label } -->
+    <entry name="showApps" type="Bool"><default>true</default></entry>
+    <entry name="appShortcuts" type="String"><default>[]</default></entry>
+    <!-- Habits: the page, the evening review ("HH:MM") and its reminder on the island, the colours of the
+         calendar (0 = GitHub's greens, 1 = the system's accent colour) and, written by the widget, the record
+         itself: JSON { habits, days: { "YYYY-MM-DD": { r, on, off, x } }, plan, runs, … }, see Habits.js -->
+    <entry name="showHabits" type="Bool"><default>true</default></entry>
+    <entry name="habitsReviewTime" type="String"><default>21:30</default></entry>
+    <entry name="habitsReminder" type="Bool"><default>true</default></entry>
+    <entry name="habitsColorSource" type="Int"><default>0</default></entry>
+    <entry name="habitsData" type="String"><default></default></entry>
+    <entry name="notesSources" type="String"><default>[]</default></entry>
+    <entry name="notesDefault" type="String"><default></default></entry>
+    <entry name="notesRefreshMinutes" type="Int"><default>2</default></entry>
+    <!-- Carry on where one left off: on/off, and (written by the widget) the note last open in the
+         editor: JSON { source, id, editing }. Never a note's text, never a password -->
+    <entry name="notesResume" type="Bool"><default>true</default></entry>
+    <entry name="notesLastOpen" type="String"><default></default></entry>
+
+    <!-- Suggestions: on/off (off until the user switches them on); the least pause between two of them (minutes); written by the widget:
+         the rules this system can make (for the settings page) and, only when the native module
+         is missing, what was learned (it is a file otherwise; see SuggestionStore.qml) -->
+    <entry name="suggestionsEnabled" type="Bool"><default>false</default></entry>
+    <entry name="suggestionGapMinutes" type="Int">
+      <default>5</default>
+      <min>1</min>
+      <max>240</max>
+    </entry>
+    <!-- "quiet", "balanced", "active"; the three numbers: 0 = what the level says -->
+    <entry name="suggestionLevel" type="String"><default>balanced</default></entry>
+    <entry name="suggestionDailyCards" type="Int"><default>0</default></entry>
+    <entry name="suggestionCooldownMinutes" type="Int"><default>0</default></entry>
+    <entry name="suggestionHalfLifeDays" type="Int"><default>0</default></entry>
+    <entry name="suggestionsAvailable" type="String"><default></default></entry>
+    <entry name="suggestionsData" type="String"><default></default></entry>
+
+    <!-- AI: quick questions to Claude Code on this computer, a local model server or a service with a key.
+         The page is off until the user switches it on (Settings → Layout or AI). The sources: JSON list of { id, kind, server, model } (kinds: ui/ai/AiCatalog.qml). Keys are
+         kept in KWallet, never here. The longest answer (tokens) and question (characters); whether the
+         chat is also kept in a file; and, written by the widget, the sources whose notice was accepted -->
+    <entry name="showAi" type="Bool"><default>false</default></entry>
+    <entry name="aiSources" type="String"><default>[]</default></entry>
+    <entry name="aiDefault" type="String"><default></default></entry>
+    <entry name="aiMaxTokens" type="Int">
+      <default>2048</default>
+      <min>128</min>
+      <max>8192</max>
+    </entry>
+    <entry name="aiMaxChars" type="Int">
+      <default>4000</default>
+      <min>200</min>
+      <max>20000</max>
+    </entry>
+    <entry name="aiKeepHistory" type="Bool"><default>false</default></entry>
+    <!-- "Answer ready" on the small island when an answer arrived while its page was not on screen -->
+    <entry name="aiNotify" type="Bool"><default>true</default></entry>
+    <entry name="aiAcknowledged" type="String"><default>[]</default></entry>
+
+    <!-- Cloud: the user's rclone remotes as folders of names, with sync state where a client on this
+         computer says it. Off until switched on. The remotes not shown and the names given to them
+         (JSON), the storage thresholds (percent), alerts and their pause (hours), the question before
+         an upload, up to which size a file is fetched when the pointer rests on it and how large the
+         cache may get (MB), the indicator on the small island; written by the widget: when each
+         alert was last said, and where the last upload went. Never a token or a password -->
+    <entry name="showCloud" type="Bool"><default>false</default></entry>
+    <entry name="cloudIndicator" type="Bool"><default>true</default></entry>
+    <entry name="cloudHidden" type="String"><default>[]</default></entry>
+    <entry name="cloudAliases" type="String"><default>{}</default></entry>
+    <entry name="cloudWarnPercent" type="Int"><default>90</default><min>50</min><max>100</max></entry>
+    <entry name="cloudCriticalPercent" type="Int"><default>98</default><min>50</min><max>100</max></entry>
+    <entry name="cloudAlerts" type="Bool"><default>true</default></entry>
+    <entry name="cloudAlertPauseHours" type="Int"><default>6</default><min>1</min><max>168</max></entry>
+    <entry name="cloudConfirmUpload" type="Bool"><default>true</default></entry>
+    <entry name="cloudAutoFetchMB" type="Int"><default>25</default><min>0</min><max>1000</max></entry>
+    <entry name="cloudCacheMB" type="Int"><default>500</default><min>50</min><max>20000</max></entry>
+    <entry name="cloudAlerted" type="String"><default>{}</default></entry>
+    <entry name="cloudLastTarget" type="String"><default></default></entry>
+
+    <!-- The companion: a cat beside the island (Settings → Cat; contents/ui/companion). What it feels is never kept. -->
+    <entry name="catEnabled" type="Bool"><default>true</default></entry>
+    <!-- 0 = automatic (the side that is free), 1 = left, 2 = right -->
+    <entry name="catSide" type="Int"><default>0</default></entry>
+    <!-- its height, in per cent of the pill's -->
+    <entry name="catSize" type="Int"><default>130</default><min>100</min><max>180</max></entry>
+    <!-- grey | orange | black | white | tuxedo | custom (then catFurColor) -->
+    <entry name="catFur" type="String"><default>grey</default></entry>
+    <entry name="catFurColor" type="String"><default>#c9a27c</default></entry>
+    <!-- what it reacts to: music (headphones), the AI and questions (bubbles), events -->
+    <entry name="catMusic" type="Bool"><default>true</default></entry>
+    <entry name="catThoughts" type="Bool"><default>true</default></entry>
+    <entry name="catEvents" type="Bool"><default>true</default></entry>
+    <!-- what may be done to it -->
+    <entry name="catPetting" type="Bool"><default>true</default></entry>
+    <entry name="catClicks" type="Bool"><default>true</default></entry>
+    <entry name="catNoAnger" type="Bool"><default>false</default></entry>
+    <entry name="catSulkSeconds" type="Int"><default>10</default><min>3</min><max>120</max></entry>
+    <entry name="catSleepSeconds" type="Int"><default>20</default><min>5</min><max>3600</max></entry>
+    <!-- while the island is a dot: 0 = hidden, 1 = asleep beside the dot -->
+    <entry name="catDot" type="Int"><default>0</default></entry>
+    <entry name="catReduceMotion" type="Bool"><default>false</default></entry>
+
+    <!-- Modules -->
+    <entry name="showMediaModule" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- 0 = fixed (5 cards, 3+2), 1 = dynamic (active metrics grow) -->
+    <entry name="systemView" type="Int">
+      <default>1</default>
+    </entry>
+    <entry name="showSystemModule" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showVolumeModule" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showNotificationModule" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- Order of the expanded pages (Settings → Layout), comma-separated keys; see PageCatalog.qml -->
+    <entry name="pageOrder" type="String">
+      <default>activities,media,control,weather,notifications,quicksettings,apps,tools,habits,calendar,notes,ai,cloud,clipboard</default>
+    </entry>
+    <!-- Ambient glow: the island's edge in the colour of the album cover, following the music (Media page) -->
+    <entry name="ambientGlow" type="Bool"><default>false</default></entry>
+    <!-- Buttons of the Controls page, in order, at most 6 (Settings → Controls); see ControlCatalog.qml -->
+    <entry name="controlTiles" type="String">
+      <default>dnd,nightlight,power,bluetooth,wifi,updates</default>
+    </entry>
+    <!-- The Controls page's buttons' colours: on, one for all ("" = each its own); off, one for all ("" = as the
+         island's buttons); a button's own (JSON { key: "#rrggbb" }: vivid on, a muted tone of it off) -->
+    <entry name="controlOnColor" type="String"><default></default></entry>
+    <entry name="controlOffColor" type="String"><default></default></entry>
+    <entry name="controlTileColors" type="String"><default>{}</default></entry>
+    <!-- Colour schemes the "Dark mode" button switches between (remembered when it switches away) -->
+    <entry name="darkColorScheme" type="String"><default></default></entry>
+    <entry name="lightColorScheme" type="String"><default></default></entry>
+    <!-- Language of the widget: auto (the system's), tr or en; see Lang.qml -->
+    <entry name="language" type="String">
+      <default>auto</default>
+    </entry>
+  </group>
+</kcfg>

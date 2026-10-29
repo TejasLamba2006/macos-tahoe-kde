@@ -1,0 +1,17 @@
+[Animation]
+Frames=12
+
+[Appearance]
+BackgroundColorOpacity=82
+Translucency=true
+
+[Dialogs]
+FirstRun=false
+
+[Window]
+DynamicTabTitles=true
+Height=50
+KeepOpen=false
+ShowTabBar=true
+ShowTitleBar=false
+Width=85

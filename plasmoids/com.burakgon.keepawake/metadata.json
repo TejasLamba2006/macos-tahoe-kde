@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "burakgon@icloud.com",
+                "Name": "Burak"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Prevent system sleep while allowing the screen to turn off (Amphetamine-style).",
+        "Icon": "redshift-status-on",
+        "Id": "com.burakgon.keepawake",
+        "License": "MIT",
+        "Name": "Keep Awake",
+        "Version": "1.1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
