@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "macOS Dock" }],
+        "Category": "File System",
+        "Description": "macOS Dock Downloads Folder",
+        "Icon": "folder-download",
+        "Id": "org.macos.downloads",
+        "License": "GPL-2.0+",
+        "Name": "macOS Downloads",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

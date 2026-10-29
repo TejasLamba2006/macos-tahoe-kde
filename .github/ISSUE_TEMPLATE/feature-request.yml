@@ -1,0 +1,25 @@
+name: "macOS Feature Request"
+description: "Suggest a macOS feature, gesture, widget, or privacy tool to port next"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: macos-feature
+    attributes:
+      label: "Which macOS feature should we port next?"
+      description: "Name the macOS Sequoia / Tahoe feature, shortcut, or UI behavior."
+      placeholder: "e.g., Finder Quick Look on Spacebar, Stage Manager, Screenshot floating thumbnail..."
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: "How does it work on macOS, and how should it behave on KDE Plasma 6 Wayland?"
+      placeholder: "Describe the exact interaction or visual detail..."
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: "Your Setup (Distro / GPU / Monitors)"
+      placeholder: "e.g., CachyOS, KDE Plasma 6.8 Wayland, dual monitor..."

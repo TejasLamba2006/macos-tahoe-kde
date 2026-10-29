@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [{ "Name": "Tejas" }],
+        "Description": "Keep Chrome Document Picture-in-Picture (Google Meet) overlay on top without affecting main Chrome window",
+        "Id": "chrome-pip-top",
+        "License": "GPL-2.0+",
+        "Name": "Chrome Document PiP Always on Top",
+        "Version": "1.0"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

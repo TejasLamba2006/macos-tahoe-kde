@@ -1,0 +1,29 @@
+html:not(.wa-privacy-off) #pane-side [role="row"] > div,
+html:not(.wa-privacy-off) #pane-side [role="listitem"] > div {
+  filter: blur(7px) !important;
+  transition: filter 0.18s ease-in-out !important;
+}
+html:not(.wa-privacy-off) #pane-side [role="row"]:hover > div,
+html:not(.wa-privacy-off) #pane-side [role="listitem"]:hover > div {
+  filter: none !important;
+}
+html:not(.wa-privacy-off) #main [role="row"] > div,
+html:not(.wa-privacy-off) #main .message-in,
+html:not(.wa-privacy-off) #main .message-out {
+  filter: blur(6px) !important;
+  transition: filter 0.18s ease-in-out !important;
+}
+html:not(.wa-privacy-off) #main [role="row"]:hover > div,
+html:not(.wa-privacy-off) #main .message-in:hover,
+html:not(.wa-privacy-off) #main .message-out:hover {
+  filter: none !important;
+}
+html:not(.wa-privacy-off) #main header img,
+html:not(.wa-privacy-off) #main header span[dir="auto"] {
+  filter: blur(5px) !important;
+  transition: filter 0.18s ease-in-out !important;
+}
+html:not(.wa-privacy-off) #main header:hover img,
+html:not(.wa-privacy-off) #main header:hover span[dir="auto"] {
+  filter: none !important;
+}

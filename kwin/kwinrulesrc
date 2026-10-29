@@ -1,0 +1,39 @@
+[General]
+Order=chrome-doc-pip,pip-always-on-top,konsole-opacity
+
+[chrome-doc-pip]
+Description=Chrome Document Picture-in-Picture (Google Meet / Web Apps) Always on Top
+above=true
+aboverule=2
+skipswitcher=true
+skipswitcherrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+title=^(?!.* - (Google Chrome|Chromium|Brave)$).+$
+titlematch=3
+types=1
+wmclass=^(google-chrome|chromium|brave-browser)$
+wmclassmatch=3
+
+[konsole-opacity]
+Description=Konsole slight transparency
+opacityactive=92
+opacityactiverule=2
+opacityinactive=88
+opacityinactiverule=2
+wmclass=konsole|yakuake
+wmclassmatch=3
+
+[pip-always-on-top]
+Description=macOS Picture-in-Picture & Chrome Document PiP Always on Top
+above=true
+aboverule=2
+decorationpolicy=none
+decorationpolicyrule=2
+skipswitcher=true
+skipswitcherrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+title=^(Picture-in-Picture|Picture in picture|Picture-in-picture)$
+titlematch=3
+types=1

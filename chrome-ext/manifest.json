@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "macOS WhatsApp Privacy Blur",
+  "version": "1.0",
+  "description": "Blurs WhatsApp Web chat list and messages until hovered (Alt+X to toggle)",
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "css": ["privacy.css"],
+      "js": ["privacy.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

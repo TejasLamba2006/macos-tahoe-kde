@@ -1,0 +1,6 @@
+[Unit]
+Description=Sync Google Calendar iCal feed into Akonadi for KDE Liquid Glass Calendar
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/bin/sync-google-ical.py

@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic Google Calendar iCal Sync Timer
+
+[Timer]
+OnStartupSec=15s
+OnUnitActiveSec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

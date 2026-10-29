@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "macOS Dock" }],
+        "Category": "System Information",
+        "Description": "macOS Dock Trash",
+        "Icon": "user-trash",
+        "Id": "org.macos.trash",
+        "License": "GPL-2.0+",
+        "Name": "macOS Trash",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

@@ -1,0 +1,8 @@
+[Sound Theme]
+Name=macOS
+Comment=macOS Sequoia / Tahoe Sound Theme
+Inherits=ocean,freedesktop
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo

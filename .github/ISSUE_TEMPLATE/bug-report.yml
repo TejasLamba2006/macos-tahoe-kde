@@ -1,0 +1,17 @@
+name: "Bug Report"
+description: "Report a bug with multi-monitor sync, lock screen, KWin rules, or Aerial wallpaper"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "What broke?"
+      placeholder: "Describe what happened and which component (dock, top bar, lock screen, aerial, privacy watcher) is affected."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs (optional)"
+      description: "Output of `journalctl --user -b -u plasma-plasmashell.service -n 40` or `systemctl --user status macos-multiscreen-dock.service`"

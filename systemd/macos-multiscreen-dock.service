@@ -1,0 +1,12 @@
+[Unit]
+Description=Dynamic macOS Multi-Monitor Top Bar & Dock Sync for KDE Plasma
+After=plasma-plasmashell.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/macos-screen-watcher.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=plasma-workspace.target default.target

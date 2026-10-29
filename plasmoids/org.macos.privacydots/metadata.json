@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "Tejas" }],
+        "Category": "System Information",
+        "Description": "macOS Sequoia / Tahoe Menu Bar Privacy Indicators (Mic, Camera, Screen Recording)",
+        "Icon": "security-high",
+        "Id": "org.macos.privacydots",
+        "License": "GPL-2.0+",
+        "Name": "macOS Privacy Dots",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}
