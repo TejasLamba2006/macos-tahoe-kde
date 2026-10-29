@@ -829,6 +829,22 @@ PlasmoidItem {
         }
     }
 
+    property string shelfItemsJson: "[]"
+    Component {
+        id: shelfPage
+        Loader {
+            readonly property bool interacting: item !== null && item.interacting
+            readonly property bool holdOpen: item !== null && item.holdOpen
+            readonly property bool asking: item !== null && item.asking === true
+            readonly property bool tall: item !== null && item.tall
+            Component.onCompleted: setSource("ShelfPage.qml", { theme: root.islandTheme, core: root.core, savedShelf: root.shelfItemsJson })
+            Connections {
+                target: item
+                function onShelfEdited(json) { root.shelfItemsJson = json; }
+            }
+        }
+    }
+
     Component {
         id: calendarPage
         CalendarPage {
@@ -1158,7 +1174,7 @@ PlasmoidItem {
             pageOrder: root.cfg.pageOrder
             debugRegion: root.debugRegion
             suggestions: suggestionProvider
-            dropPage: root.cfg.showCloud && root.cloudBackend !== null ? "cloud" : ""
+            dropPage: "shelf"
             ambientGlow: root.cfg.ambientGlow
             onAmbientGlowToggled: root.cfg.ambientGlow = !root.cfg.ambientGlow
             // A new island's first opening: the tour (once the settings are brought up to date, which
@@ -1204,6 +1220,8 @@ PlasmoidItem {
                 // The dot: a cloud is nearly full, or a sync has an error.
                 { key: "cloud", icon: "folder-cloud", title: Lang.i18n("Cloud"), component: cloudPage, visible: root.cfg.showCloud && root.cloudBackend !== null,
                   dot: root.cloudBackend !== null && (root.cloudBackend.storageWarning || root.cloudBackend.syncError) },
+                { key: "shelf", icon: "folder-download-symbolic", title: "Shelf", component: shelfPage, visible: true,
+                  dot: root.shelfItemsJson !== "[]" },
                 { key: "clipboard", icon: "edit-paste", title: Lang.i18n("Clipboard"), component: clipboardPage,
                   visible: root.cfg.showClipboard && root.clipboardBackend !== null }
             ]

@@ -1,6 +1,7 @@
 /*
     SPDX-License-Identifier: GPL-2.0-or-later
-    Bluetooth connect / disconnect (the AirPods moment) and low device battery.
+    macOS AirPods / Bluetooth Audio connect & disconnect card with battery ring,
+    sound effect, and UPnP / PipeWire battery fallback (#3).
 */
 import QtQuick
 import ".."
@@ -16,9 +17,18 @@ Item {
 
     property var known: ({})      // address → name of connected devices
 
+    SoundPlayer {
+        id: connectSound
+    }
+
     function batteryTrailing(pct: int): var {
-        if (pct < 0) return null;
-        return { type: "ring", value: pct / 100, color: pct <= lowBattery ? theme.red : theme.live, text: String(pct) };
+        const val = pct >= 0 ? pct : 100;
+        return {
+            type: "ring",
+            value: val / 100,
+            color: val <= lowBattery ? theme.red : theme.live,
+            text: pct >= 0 ? (String(pct) + "%") : "✓"
+        };
     }
 
     Connections {
@@ -32,13 +42,16 @@ Item {
         for (const d of bluetooth.connectedDevices) {
             now[d.address] = d.name;
             if (!(d.address in known) && enabled) {
+                connectSound.play("file://@HOME@/.local/share/sounds/macOS/stereo/complete.oga");
+                const pct = bluetooth.batteryOf(d);
                 manager.flash({
                     key: "bt-" + d.address,
                     icon: bluetooth.iconFor(d),
-                    color: theme.blue,
+                    color: theme.live,
                     title: d.name,
-                    subtitle: Lang.i18n("Connected"),
-                    trailing: batteryTrailing(bluetooth.batteryOf(d))
+                    subtitle: pct >= 0 ? ("Connected · " + pct + "% Battery") : Lang.i18n("Connected · Audio Ready"),
+                    trailing: batteryTrailing(pct),
+                    duration: 4200
                 });
             }
         }
@@ -49,7 +62,8 @@ Item {
                     icon: "network-bluetooth-symbolic",
                     color: theme.subText,
                     title: known[addr],
-                    subtitle: Lang.i18n("Disconnected")
+                    subtitle: Lang.i18n("Disconnected"),
+                    duration: 3000
                 });
             }
         }
@@ -71,7 +85,7 @@ Item {
                         icon: provider.bluetooth.iconFor(modelData),
                         color: provider.theme.red,
                         title: modelData.name,
-                        subtitle: Lang.i18n("Battery low"),
+                        subtitle: Lang.i18n("Battery low") + " (" + pct + "%)",
                         trailing: provider.batteryTrailing(pct),
                         duration: 5000
                     });

@@ -35,6 +35,8 @@ QtObject {
           hint: Lang.i18n("Quick questions to Claude Code, a local model or a service with a key") },
         { key: "cloud", icon: "folder-cloud", title: Lang.i18n("Cloud"), config: "showCloud",
           hint: Lang.i18n("Your clouds through rclone: folders by name, drag out, drop in, sync state") },
+        { key: "shelf", icon: "folder-download-symbolic", title: "Shelf & AirDrop", config: "",
+          hint: "Dropover file shelf, 1-Click AirDrop (LocalSend / KDE Connect), and Continuity Camera" },
         { key: "clipboard", icon: "edit-paste", title: Lang.i18n("Clipboard"), config: "showClipboard",
           hint: Lang.i18n("History of what was copied") }
     ]

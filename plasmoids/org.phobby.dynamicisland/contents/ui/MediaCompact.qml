@@ -1,7 +1,6 @@
 /*
     SPDX-License-Identifier: GPL-2.0-or-later
-    Media live activity inside the pill: album art · title · equalizer.
-    (Moved unchanged from Island.qml's former "live" layer.)
+    Media live activity inside the pill: album art · title · real-time album-tinted equalizer.
 */
 import QtQuick
 import QtQuick.Layouts
@@ -12,6 +11,11 @@ Item {
     required property var activity
     required property Theme theme
     property PlasmaBackend backend: activity?.backend ?? null
+
+    AlbumColor {
+        id: coverColor
+        source: media.backend?.artUrl ?? ""
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -38,7 +42,7 @@ Item {
         }
         Equalizer {
             running: media.visible && (media.backend?.isPlaying ?? false)
-            color: media.theme.live
+            color: (media.backend?.artUrl ?? "") !== "" ? coverColor.color : media.theme.live
             Layout.preferredHeight: 14
         }
     }

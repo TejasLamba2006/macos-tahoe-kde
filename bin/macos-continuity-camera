@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# ponytail: macOS Continuity Camera controller — streams phone camera to /dev/video9 and pushes Live Activity to Dynamic Island
+set -euo pipefail
+
+PID_FILE="/run/user/$(id -u)/continuity-camera.pid"
+FACING="${2:-back}"
+V4L2_DEV="/dev/video9"
+
+if [ ! -e "$V4L2_DEV" ]; then
+    sudo -n modprobe v4l2loopback devices=1 video_nr=9 card_label="Continuity Camera" exclusive_caps=1 2>/dev/null || true
+fi
+
+is_running() {
+    [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
+}
+
+stop_cam() {
+    if is_running; then
+        kill "$(cat "$PID_FILE")" 2>/dev/null || true
+        rm -f "$PID_FILE"
+    fi
+    pkill -f "scrcpy.*--v4l2-sink=$V4L2_DEV" 2>/dev/null || true
+    ~/.local/bin/island-push --id continuity-cam --done --status cancel 2>/dev/null || true
+    echo "stopped"
+}
+
+start_cam() {
+    if is_running; then
+        stop_cam
+    fi
+    if ! adb get-state >/dev/null 2>&1; then
+        ~/.local/bin/island-push --flash --title "Continuity Camera" --subtitle "Connect phone via USB or Wi-Fi ADB first" --icon camera-web-symbolic --color orange --duration 4000 2>/dev/null || true
+        echo "no-device"
+        exit 1
+    fi
+    nohup scrcpy --video-source=camera --camera-facing="$FACING" --camera-size=1920x1080 --v4l2-sink="$V4L2_DEV" --no-playback --no-audio >/dev/null 2>&1 &
+    echo $! > "$PID_FILE"
+    ~/.local/bin/island-push --id continuity-cam --category recording --title "Continuity Camera" --subtitle "Streaming ($FACING) → /dev/video9" --icon camera-video-symbolic --color green --priority 90 2>/dev/null || true
+    echo "started:$FACING"
+}
+
+case "${1:-status}" in
+    start) start_cam ;;
+    stop) stop_cam ;;
+    toggle)
+        if is_running; then stop_cam; else start_cam; fi
+        ;;
+    flip)
+        stop_cam
+        sleep 0.3
+        FACING="front" start_cam
+        ;;
+    status)
+        if is_running; then echo "running"; else echo "stopped"; fi
+        ;;
+esac

@@ -1,0 +1,7 @@
+module org.phobby.dynamicisland.effects
+linktarget dynamicislandeffects
+optional plugin dynamicislandeffects
+classname DynamicIslandEffectsPlugin
+typeinfo dynamicislandeffects.qmltypes
+prefer :/qt/qml/org/phobby/dynamicisland/effects/
+

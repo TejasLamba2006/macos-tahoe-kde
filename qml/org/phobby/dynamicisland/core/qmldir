@@ -1,0 +1,7 @@
+module org.phobby.dynamicisland.core
+linktarget dynamicislandcore
+optional plugin dynamicislandcore
+classname DynamicIslandCorePlugin
+typeinfo dynamicislandcore.qmltypes
+prefer :/qt/qml/org/phobby/dynamicisland/core/
+
