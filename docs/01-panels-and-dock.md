@@ -1,7 +1,7 @@
 # 01. Multi-Monitor Top Menu Bar & Bottom Floating Dock
 
-![Top Bar](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-arch/main/assets/screenshots/02-top-bar-dynamic-island.png)
-![Bottom Dock](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-arch/main/assets/screenshots/03-floating-dock.png)
+![Top Bar](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-kde/main/assets/screenshots/02-top-bar-dynamic-island.png)
+![Bottom Dock](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-kde/main/assets/screenshots/03-floating-dock.png)
 
 ## Why Stock Plasma Panels Break on Dual Monitors
 

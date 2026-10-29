@@ -84,8 +84,8 @@ The `io.github.birkneralex.aerial` plugin throttles video downloads to 1 video p
 ## Quick Start
 
 ```bash
-git clone https://github.com/TejasLamba2006/macos-tahoe-arch.git
-cd macos-tahoe-arch
+git clone https://github.com/TejasLamba2006/macos-tahoe-kde.git
+cd macos-tahoe-kde
 cp .env.example ~/.config/macos-tahoe.env   # optional: add your GOOGLE_ICAL_URL
 ./install.sh
 ```

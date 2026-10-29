@@ -1,6 +1,6 @@
 # 03. Spotlight (`Vicinae`) on Wayland & KWin Window Rules
 
-![Spotlight Vicinae](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-arch/main/assets/screenshots/05-spotlight-vicinae.png)
+![Spotlight Vicinae](https://raw.githubusercontent.com/TejasLamba2006/macos-tahoe-kde/main/assets/screenshots/05-spotlight-vicinae.png)
 
 ## 1. Why `Win+Space` Opens KRunner Instead of Your Launcher on Wayland
 
