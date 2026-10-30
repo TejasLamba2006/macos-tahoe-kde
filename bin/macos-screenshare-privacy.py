@@ -281,10 +281,13 @@ def poll_ports_and_handoff(bus):
         "handoffConnected": bool(handoff_state.get("connected", False)),
         "handoffDevice": handoff_state.get("device", ""),
         "hfpConnected": bool(handoff_state.get("hfpConnected", False)),
+        "audioRoute": handoff_state.get("audioRoute", "phone"),
         "mirrorRunning": bool(handoff_state.get("mirrorRunning", False)),
         "callState": handoff_state.get("callState", ""),
         "callNumber": handoff_state.get("callNumber", ""),
         "callName": handoff_state.get("callName", ""),
+        "contactsCount": int(handoff_state.get("contactsCount", 0)),
+        "contacts": handoff_state.get("contacts", []),
         "handoffUrl": handoff_state.get("handoffUrl") or LAST_HANDOFF_URL,
         "handoffPreview": handoff_state.get("handoffPreview") or (clip_text[:120] if clip_text else ""),
         "handoffImage": handoff_state.get("handoffImage", "")

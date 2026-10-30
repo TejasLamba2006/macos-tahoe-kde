@@ -43,6 +43,75 @@ class HandoffBridge:
         self.call_name = ""
         self.hfp_connected = False
         self.mirror_running = False
+        self.audio_route = "phone"
+        self.contacts = []
+        self.load_contacts()
+
+    def load_contacts(self):
+        # 1. Trigger KDE Connect contacts sync if device is available
+        if self.kde_dev:
+            try:
+                c_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/contacts")
+                c_iface = dbus.Interface(c_obj, "org.kde.kdeconnect.device.contacts")
+                c_iface.synchronizeRemoteWithLocal()
+            except Exception:
+                pass
+
+        by_num = {}
+        # 2. Parse KDE Connect vCard files (~/.local/share/kpeoplevcard/kdeconnect-*)
+        vcard_root = os.path.expanduser("~/.local/share/kpeoplevcard")
+        for vcf in glob.glob(os.path.join(vcard_root, "kdeconnect-*", "*.vcf")):
+            try:
+                raw = open(vcf, "r", encoding="utf-8", errors="ignore").read()
+                fn_m = re.search(r"^FN(?:;[^:]*)?:(.+)$", raw, re.M)
+                if not fn_m:
+                    continue
+                name = fn_m.group(1).strip()
+                # Decode Quoted-Printable UTF-8 if present
+                if "ENCODING=QUOTED-PRINTABLE" in raw and "=" in name:
+                    import quopri
+                    try:
+                        name = quopri.decodestring(name.encode("ascii", errors="ignore")).decode("utf-8", errors="ignore").strip()
+                    except Exception:
+                        pass
+                for tel_m in re.finditer(r"^TEL(?:;[^:]*)?:(.+)$", raw, re.M):
+                    num = re.sub(r"[^\d+]", "", tel_m.group(1).strip())
+                    if len(num) >= 6 and name and not name.startswith("Identified by"):
+                        key = num[-10:]
+                        by_num[key] = {"name": name, "number": num}
+            except Exception:
+                pass
+
+        # 3. Also pull from ADB Contacts Provider if ADB is active
+        if self.serial:
+            try:
+                out = subprocess.check_output(
+                    [
+                        "adb", "-s", self.serial, "shell",
+                        "content query --uri content://com.android.contacts/data/phones --projection display_name:data1"
+                    ],
+                    text=True, stderr=subprocess.DEVNULL, timeout=2.5
+                )
+                for line in out.splitlines():
+                    m = re.search(r"display_name=([^,]+),\s*data1=(.+)$", line)
+                    if m:
+                        name = m.group(1).strip()
+                        num = re.sub(r"[^\d+]", "", m.group(2).strip())
+                        if len(num) >= 6 and name and name != "NULL":
+                            by_num[num[-10:]] = {"name": name, "number": num}
+            except Exception:
+                pass
+
+        self.contacts = sorted(by_num.values(), key=lambda x: x["name"].lower())
+
+    def resolve_contact_name(self, number):
+        clean = re.sub(r"[^\d+]", "", str(number or ""))
+        if len(clean) >= 6:
+            tail = clean[-10:]
+            for c in self.contacts:
+                if c["number"].endswith(tail) or tail.endswith(c["number"][-10:]):
+                    return c["name"]
+        return ""
 
     def check_telephony_and_mirror(self):
         # 1. Check if iPhone Mirroring window is running
@@ -56,7 +125,21 @@ class HandoffBridge:
             except Exception:
                 pass
 
-        # 2. Check PipeWire Bluetooth HFP AudioGateway1 & active calls
+        # 2. Check audio route preference (~/.config/macos-phone-audio-route)
+        route_file = os.path.expanduser("~/.config/macos-phone-audio-route")
+        if not os.path.exists(route_file):
+            # Default to "phone" so normal phone music/reels don't unexpectedly play on PC unless toggled or calling
+            try:
+                open(route_file, "w").write("phone")
+            except Exception:
+                pass
+            subprocess.Popen([os.path.expanduser("~/.local/bin/macos-phone-ctl"), "audio-route", "phone"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            self.audio_route = open(route_file).read().strip() or "phone"
+        except Exception:
+            self.audio_route = "phone"
+
+        # 3. Check PipeWire Bluetooth HFP AudioGateway1 & active calls
         try:
             mgr = self.bus.get_object("org.pipewire.Telephony", "/org/pipewire/Telephony")
             om = dbus.Interface(mgr, "org.freedesktop.DBus.ObjectManager")
@@ -70,7 +153,8 @@ class HandoffBridge:
                     props = ifs["org.ofono.VoiceCall"]
                     state = str(props.get("State", ""))
                     line_id = str(props.get("LineIdentification", ""))
-                    name = str(props.get("Name", "")) or line_id or "Phone Call"
+                    resolved = self.resolve_contact_name(line_id)
+                    name = resolved or str(props.get("Name", "")) or line_id or "Phone Call"
                     if state in ("incoming", "waiting", "dialing", "alerting", "active", "held"):
                         active_call_found = True
                         prev_state = self.call_state
@@ -78,7 +162,7 @@ class HandoffBridge:
                         self.call_number = line_id
                         self.call_name = name
                         if self.call_state != prev_state:
-                            sub = f"Incoming Call • {line_id}" if self.call_state == "incoming" else f"Speaking on Mac (HFP) • {line_id}"
+                            sub = f"Incoming Call • {line_id}" if self.call_state == "incoming" else f"Speaking on {'Laptop' if self.audio_route == 'laptop' else 'Phone'} • {line_id}"
                             subprocess.Popen(
                                 [
                                     os.path.expanduser("~/.local/bin/island-push"),
@@ -129,10 +213,13 @@ class HandoffBridge:
             "connected": bool(self.conn is not None or self.kde_dev or self.hfp_connected),
             "device": self.serial or self.kde_dev or "",
             "hfpConnected": self.hfp_connected,
+            "audioRoute": self.audio_route,
             "mirrorRunning": self.mirror_running,
             "callState": self.call_state,
             "callNumber": self.call_number,
             "callName": self.call_name,
+            "contactsCount": len(self.contacts),
+            "contacts": self.contacts,
             "handoffUrl": self.handoff_url,
             "handoffPreview": self.handoff_preview,
             "handoffImage": self.handoff_image,
@@ -519,6 +606,8 @@ class HandoffBridge:
             # 3. Phone -> Desktop image sync
             if tick % 2 == 0:
                 self.poll_phone_latest_image()
+            if tick % 30 == 0:
+                self.load_contacts()
 
             tick += 1
             time.sleep(1.0)

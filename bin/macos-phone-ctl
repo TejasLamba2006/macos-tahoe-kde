@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# ponytail: macOS Sequoia "iPhone Mirroring" + Bluetooth HFP / KDE Connect / ADB Phone Call & Dialer controller
+# ponytail: macOS Sequoia "iPhone Mirroring" + Bluetooth HFP / KDE Connect / ADB Phone Call, Audio Route & Contacts controller
 set -euo pipefail
 
 MIRROR_PID_FILE="/run/user/$(id -u)/macos-phone-mirror.pid"
+AUDIO_ROUTE_FILE="$HOME/.config/macos-phone-audio-route"
 
 find_adb_serial() {
     local ser
@@ -26,6 +27,48 @@ find_ag_path() {
         | grep -oE '/org/pipewire/Telephony/ag[0-9]+' | head -1 || true
 }
 
+get_bt_card() {
+    pactl list cards short 2>/dev/null | awk '/bluez_card\./ {print $2; exit}' || true
+}
+
+set_audio_route() {
+    local mode="${1:-}"
+    local card
+    card=$(get_bt_card)
+    if [[ -z "$mode" || "$mode" == "toggle" ]]; then
+        local cur="laptop"
+        [[ -f "$AUDIO_ROUTE_FILE" ]] && cur=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "laptop")
+        if [[ "$cur" == "laptop" ]]; then mode="phone"; else mode="laptop"; fi
+    fi
+    echo "$mode" > "$AUDIO_ROUTE_FILE"
+
+    if [[ "$mode" == "phone" ]]; then
+        # Keep phone media + call audio on phone speaker (do not hijack A2DP/SCO on laptop)
+        if [[ -n "$card" ]]; then
+            pactl set-card-profile "$card" off 2>/dev/null || true
+        fi
+        local ag
+        ag=$(find_ag_path)
+        if [[ -n "$ag" ]]; then
+            busctl --user set-property org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 RejectSCO b true 2>/dev/null || true
+        fi
+        ~/.local/bin/island-push --flash --title "Phone Audio → Phone" --subtitle "Media & calls play on your phone speaker" --icon smartphone-symbolic --color orange --duration 2500 2>/dev/null || true
+    else
+        # Route phone audio & calls through Laptop Mic & Speakers
+        ensure_bt_hfp >/dev/null 2>&1 || true
+        card=$(get_bt_card)
+        if [[ -n "$card" ]]; then
+            pactl set-card-profile "$card" audio-gateway 2>/dev/null || true
+        fi
+        local ag
+        ag=$(find_ag_path)
+        if [[ -n "$ag" ]]; then
+            busctl --user set-property org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 RejectSCO b false 2>/dev/null || true
+        fi
+        ~/.local/bin/island-push --flash --title "Phone Audio → Laptop" --subtitle "Media & calls routed to Mac Mic + Speakers" --icon audio-headphones-symbolic --color green --duration 2500 2>/dev/null || true
+    fi
+}
+
 ensure_bt_hfp() {
     local ag
     ag=$(find_ag_path)
@@ -42,6 +85,16 @@ ensure_bt_hfp() {
         sleep 1
     fi
     find_ag_path
+}
+
+sync_contacts() {
+    # 1. Trigger KDE Connect contacts synchronizeRemoteWithLocal
+    local dev
+    dev=$(qdbus6 org.kde.kdeconnect /modules/kdeconnect org.kde.kdeconnect.daemon.devices 2>/dev/null | head -1 || true)
+    if [[ -n "$dev" ]]; then
+        qdbus6 org.kde.kdeconnect "/modules/kdeconnect/devices/$dev/contacts" org.kde.kdeconnect.device.contacts.synchronizeRemoteWithLocal >/dev/null 2>&1 || true
+    fi
+    ~/.local/bin/island-push --flash --title "Contacts Synced" --subtitle "Phone address book updated in Dynamic Island" --icon view-pim-contacts --color blue --duration 2500 2>/dev/null || true
 }
 
 is_mirror_running() {
@@ -61,6 +114,10 @@ start_mirror() {
         fi
         ser=$(find_adb_serial)
     fi
+    local route="laptop"
+    [[ -f "$AUDIO_ROUTE_FILE" ]] && route=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "laptop")
+    local audio_flag="--no-audio"
+    [[ "$route" == "laptop" ]] && audio_flag=""
     nohup scrcpy -s "$ser" \
         --window-title="iPhone Mirroring" \
         --always-on-top \
@@ -68,6 +125,7 @@ start_mirror() {
         --window-height=820 \
         --stay-awake \
         --turn-screen-off \
+        $audio_flag \
         >/dev/null 2>&1 &
     echo $! > "$MIRROR_PID_FILE"
     ~/.local/bin/island-push --flash --title "Phone Mirroring Active" --subtitle "Full touch, keyboard & audio mirrored" --icon smartphone-symbolic --color green --duration 3000 2>/dev/null || true
@@ -87,12 +145,23 @@ dial_number() {
     if [[ -z "$num" ]]; then
         exit 1
     fi
+    local route="laptop"
+    [[ -f "$AUDIO_ROUTE_FILE" ]] && route=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "laptop")
     local ag
     ag=$(ensure_bt_hfp)
     if [[ -n "$ag" ]]; then
         busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager Dial s "$num" >/dev/null 2>&1 && {
-            busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
-            ~/.local/bin/island-push --id phone-call --category call --title "Calling $num" --subtitle "Audio routed to Mac Mic & Speakers (HFP)" --icon call-start-symbolic --color green --priority 95 2>/dev/null || true
+            if [[ "$route" == "laptop" ]]; then
+                local card
+                card=$(get_bt_card)
+                [[ -n "$card" ]] && pactl set-card-profile "$card" audio-gateway 2>/dev/null || true
+                busctl --user set-property org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 RejectSCO b false 2>/dev/null || true
+                busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
+                ~/.local/bin/island-push --id phone-call --category call --title "Calling $num" --subtitle "Audio on Laptop Mic & Speakers" --icon call-start-symbolic --color green --priority 95 2>/dev/null || true
+            else
+                busctl --user set-property org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 RejectSCO b true 2>/dev/null || true
+                ~/.local/bin/island-push --id phone-call --category call --title "Calling $num" --subtitle "Audio on Phone Earpiece" --icon call-start-symbolic --color orange --priority 95 2>/dev/null || true
+            fi
             exit 0
         }
     fi
@@ -108,7 +177,6 @@ answer_call() {
     local ag
     ag=$(ensure_bt_hfp)
     if [[ -n "$ag" ]]; then
-        # Answer incoming call object via org.ofono.VoiceCall Answer or HoldAndAnswer
         local call_path
         call_path=$(busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager GetCalls 2>/dev/null | grep -oE '/org/pipewire/Telephony/ag[0-9]+/call[0-9]+' | head -1 || true)
         if [[ -n "$call_path" ]]; then
@@ -116,7 +184,11 @@ answer_call() {
         else
             busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager HoldAndAnswer >/dev/null 2>&1 || true
         fi
-        busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
+        local route="laptop"
+        [[ -f "$AUDIO_ROUTE_FILE" ]] && route=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "laptop")
+        if [[ "$route" == "laptop" ]]; then
+            busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
+        fi
     fi
     local ser
     ser=$(find_adb_serial)
@@ -145,5 +217,7 @@ case "${1:-}" in
     dial) dial_number "${2:-}" ;;
     answer) answer_call ;;
     hangup) hangup_call ;;
+    audio-route) set_audio_route "${2:-toggle}" ;;
+    sync-contacts) sync_contacts ;;
     connect-audio) ensure_bt_hfp ;;
 esac

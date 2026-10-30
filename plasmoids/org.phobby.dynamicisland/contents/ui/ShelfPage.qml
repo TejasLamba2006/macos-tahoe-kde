@@ -23,10 +23,14 @@ Item {
 
     property var items: []
     property var activePorts: []
+    property var contacts: []
+    property var filteredContacts: []
+    property int contactsCount: 0
     property string handoffUrl: ""
     property string handoffImage: ""
     property bool handoffConnected: false
     property bool hfpConnected: false
+    property string audioRoute: "phone"
     property bool mirrorRunning: false
     property string callState: ""
     property string callNumber: ""
@@ -47,6 +51,23 @@ Item {
         onTriggered: page.pollPortsAndHandoff()
     }
 
+    function updateFilteredContacts(query: string): void {
+        const q = String(query || "").trim().toLowerCase();
+        if (q.length === 0) {
+            page.filteredContacts = [];
+            return;
+        }
+        const matches = [];
+        for (let i = 0; i < page.contacts.length; ++i) {
+            const c = page.contacts[i];
+            if (String(c.name || "").toLowerCase().indexOf(q) >= 0 || String(c.number || "").indexOf(q) >= 0) {
+                matches.push(c);
+                if (matches.length >= 4) break;
+            }
+        }
+        page.filteredContacts = matches;
+    }
+
     function pollPortsAndHandoff(): void {
         const xhr = new XMLHttpRequest();
         xhr.open("GET", "file:///run/user/1000/macos-ports-status.json", true);
@@ -56,10 +77,16 @@ Item {
                 try {
                     const data = JSON.parse(xhr.responseText);
                     if (Array.isArray(data.ports)) page.activePorts = data.ports;
+                    if (Array.isArray(data.contacts)) {
+                        page.contacts = data.contacts;
+                        page.contactsCount = data.contacts.length;
+                        page.updateFilteredContacts(dialInput.text);
+                    }
                     page.handoffUrl = String(data.handoffUrl || "");
                     page.handoffImage = String(data.handoffImage || "");
                     page.handoffConnected = Boolean(data.handoffConnected);
                     page.hfpConnected = Boolean(data.hfpConnected);
+                    page.audioRoute = String(data.audioRoute || "phone");
                     page.mirrorRunning = Boolean(data.mirrorRunning);
                     page.callState = String(data.callState || "");
                     page.callNumber = String(data.callNumber || "");
@@ -70,6 +97,18 @@ Item {
         xhr.send();
     }
 
+    function toggleAudioRoute(): void {
+        if (!core) return;
+        const next = audioRoute === "laptop" ? "phone" : "laptop";
+        audioRoute = next;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["audio-route", next]);
+    }
+
+    function syncContactsNow(): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["sync-contacts"]);
+    }
+
     function togglePhoneMirror(): void {
         if (!core) return;
         core.startDetached("@HOME@/.local/bin/macos-phone-ctl", [mirrorRunning ? "stop-mirror" : "mirror"]);
@@ -78,8 +117,13 @@ Item {
 
     function dialPhone(num: string): void {
         if (!core || !num) return;
-        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["dial", num]);
+        let target = num.trim();
+        if (filteredContacts.length > 0 && !/^[0-9+*#]+$/.test(target)) {
+            target = filteredContacts[0].number;
+        }
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["dial", target]);
         dialInput.text = "";
+        filteredContacts = [];
     }
 
     function answerCall(): void {
@@ -248,68 +292,126 @@ Item {
             }
         }
 
-        // Phone Mirroring & Bluetooth HFP Call / Dialer Bar
-        Rectangle {
+        // Phone Mirroring, Audio Output Toggle (Phone vs Laptop), & Contact Search Dialer
+        ColumnLayout {
             Layout.fillWidth: true
-            implicitHeight: 34
-            radius: 10
-            color: page.callState !== "" ? Qt.rgba(0.20, 0.78, 0.35, 0.25) : page.theme.faint
-            border.width: 1
-            border.color: page.callState !== "" ? page.theme.live : "transparent"
+            spacing: 4
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 6
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 34
+                radius: 10
+                color: page.callState !== "" ? Qt.rgba(0.20, 0.78, 0.35, 0.25) : page.theme.faint
+                border.width: 1
+                border.color: page.callState !== "" ? page.theme.live : "transparent"
 
-                PillButton {
-                    theme: page.theme
-                    text: page.mirrorRunning ? "Stop Mirror" : "Mirror Phone"
-                    primary: page.mirrorRunning
-                    onClicked: page.togglePhoneMirror()
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    spacing: 6
+
+                    PillButton {
+                        theme: page.theme
+                        text: page.mirrorRunning ? "Stop Mirror" : "Mirror"
+                        primary: page.mirrorRunning
+                        onClicked: page.togglePhoneMirror()
+                    }
+
+                    PillButton {
+                        theme: page.theme
+                        text: page.audioRoute === "laptop" ? "Audio: Laptop" : "Audio: Phone"
+                        primary: page.audioRoute === "laptop"
+                        onClicked: page.toggleAudioRoute()
+                    }
+
+                    PillField {
+                        id: dialInput
+                        visible: page.callState === ""
+                        theme: page.theme
+                        Layout.fillWidth: true
+                        placeholder: page.contactsCount > 0 ? ("Search " + page.contactsCount + " contacts or dial…") : "Search contact or number…"
+                        onEdited: page.updateFilteredContacts(dialInput.text)
+                        onAccepted: page.dialPhone(dialInput.text)
+                    }
+
+                    Text {
+                        visible: page.callState !== ""
+                        Layout.fillWidth: true
+                        text: (page.callState === "incoming" ? "Incoming: " : "On Call: ") + (page.callName || page.callNumber)
+                        color: page.theme.text
+                        font.pointSize: page.theme.fontSmall
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+
+                    PillButton {
+                        visible: page.callState === ""
+                        theme: page.theme
+                        text: "Call"
+                        primary: dialInput.text.length > 0
+                        onClicked: page.dialPhone(dialInput.text)
+                    }
+
+                    PillButton {
+                        visible: page.callState === "incoming"
+                        theme: page.theme
+                        text: "Answer"
+                        primary: true
+                        onClicked: page.answerCall()
+                    }
+
+                    PillButton {
+                        visible: page.callState !== ""
+                        theme: page.theme
+                        text: "Hang Up"
+                        onClicked: page.hangupCall()
+                    }
                 }
+            }
 
-                PillField {
-                    id: dialInput
-                    visible: page.callState === ""
-                    theme: page.theme
+            // Live Contact Autocomplete Results
+            Repeater {
+                model: page.filteredContacts
+                delegate: Rectangle {
+                    required property var modelData
                     Layout.fillWidth: true
-                    placeholder: page.hfpConnected ? "Dial number (Mac Mic + Speaker HFP)…" : "Enter number to call…"
-                    onAccepted: page.dialPhone(dialInput.text)
-                }
+                    implicitHeight: 28
+                    radius: 8
+                    color: page.theme.faint
 
-                Text {
-                    visible: page.callState !== ""
-                    Layout.fillWidth: true
-                    text: (page.callState === "incoming" ? "Incoming: " : "On Call: ") + (page.callName || page.callNumber)
-                    color: page.theme.text
-                    font.pointSize: page.theme.fontSmall
-                    font.weight: Font.Bold
-                    elide: Text.ElideRight
-                }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 8
+                        spacing: 8
 
-                PillButton {
-                    visible: page.callState === ""
-                    theme: page.theme
-                    text: "Call"
-                    primary: dialInput.text.length > 0
-                    onClicked: page.dialPhone(dialInput.text)
-                }
-
-                PillButton {
-                    visible: page.callState === "incoming"
-                    theme: page.theme
-                    text: "Answer"
-                    primary: true
-                    onClicked: page.answerCall()
-                }
-
-                PillButton {
-                    visible: page.callState !== ""
-                    theme: page.theme
-                    text: "Hang Up"
-                    onClicked: page.hangupCall()
+                        Kirigami.Icon {
+                            source: "view-pim-contacts"
+                            Layout.preferredWidth: 14
+                            Layout.preferredHeight: 14
+                            color: page.theme.blue
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.name
+                            color: page.theme.text
+                            font.pointSize: page.theme.fontSmall
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            text: modelData.number
+                            color: page.theme.subText
+                            font.pointSize: page.theme.fontSmall
+                        }
+                        PillButton {
+                            theme: page.theme
+                            text: "Call"
+                            primary: true
+                            onClicked: page.dialPhone(modelData.number)
+                        }
+                    }
                 }
             }
         }
