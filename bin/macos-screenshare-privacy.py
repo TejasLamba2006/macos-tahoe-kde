@@ -196,14 +196,15 @@ def poll_privacy_status():
 
 def set_desktop_icons_visible(visible):
     if not visible:
-        # Snapshot current desktop icon positions BEFORE hiding icons
+        # Only overwrite backup if desktop is currently showing real desktop:/ icons (not empty-desktop)
         js_read = """
         var out = {};
         var d = desktops();
         for (var i = 0; i < d.length; i++) {
             d[i].currentConfigGroup = ["General"];
+            var u = d[i].readConfig("url");
             var pos = d[i].readConfig("positions");
-            if (pos && pos.length > 2) {
+            if ((!u || u === "desktop:/") && pos && pos.length > 25) {
                 out[d[i].id] = pos;
             }
         }
@@ -266,10 +267,15 @@ def main():
     was_sharing = False
     share_streak = 0
     stop_streak = 0
+    boot_healed = False
 
     while True:
         ensure_whatsapp_blur()
         raw_sharing = poll_privacy_status()
+
+        if not boot_healed and not raw_sharing:
+            set_desktop_icons_visible(True)
+            boot_healed = True
 
         if raw_sharing:
             share_streak += 1

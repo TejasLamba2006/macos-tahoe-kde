@@ -229,6 +229,10 @@ for (var s = 0; s < n; s++) {
 
 var desk = desktops();
 for (var d = 0; d < desk.length; d++) {
+    desk[d].currentConfigGroup = ["General"];
+    if (desk[d].readConfig("url") === "file:///tmp/empty-desktop") {
+        desk[d].writeConfig("url", "desktop:/");
+    }
     if (desk[d].wallpaperPlugin !== "io.github.birkneralex.aerial") {
         desk[d].wallpaperPlugin = "io.github.birkneralex.aerial";
     }
