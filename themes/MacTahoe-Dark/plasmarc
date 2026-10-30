@@ -1,5 +1,5 @@
 [AdaptiveTransparency]
-enabled=true
+enabled=false
 
 [BlurBehindEffect]
 enabled=true

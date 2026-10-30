@@ -81,40 +81,34 @@ function ensureTopBar(panel, primaryTop) {
         winTitle.writeConfig("firstSpace", 6);
         winTitle.writeConfig("lastSpace", 10);
         winTitle.currentConfigGroup = ["Behavior"];
-        winTitle.writeConfig("filterByScreen", true);
+        winTitle.writeConfig("filterByScreen", false);
 
         var appMenu = panel.addWidget("org.kde.plasma.appmenu");
         appMenu.currentConfigGroup = ["Appearance"];
-        appMenu.writeConfig("allScreens", false);
+        appMenu.writeConfig("allScreens", true);
 
         panel.addWidget("org.kde.plasma.panelspacer");
         panel.addWidget("com.burakgon.keepawake");
 
         var tray = panel.addWidget("org.kde.plasma.systemtray");
-        var sysTrayId = tray.readConfig("SystrayContainmentId");
-        if (sysTrayId) {
-            var sysTray = desktopById(sysTrayId);
-            if (sysTray) {
-                sysTray.currentConfigGroup = ["General"];
-                sysTray.writeConfig("hiddenItems", [
-                    "org.kde.plasma.notifications",
-                    "org.kde.plasma.clipboard",
-                    "org.kde.plasma.volume",
-                    "org.kde.plasma.brightness",
-                    "org.kde.plasma.battery",
-                    "org.kde.plasma.bluetooth",
-                    "org.kde.plasma.devicenotifier",
-                    "org.kde.kdeconnect",
-                    "org.kde.plasma.mediacontroller",
-                    "org.kde.kscreen",
-                    "org.kde.plasma.keyboardlayout",
-                    "org.kde.plasma.keyboardindicator"
-                ]);
-                sysTray.writeConfig("shownItems", [
-                    "org.kde.plasma.networkmanagement"
-                ]);
-            }
-        }
+        tray.currentConfigGroup = ["General"];
+        tray.writeConfig("hiddenItems", [
+            "org.kde.plasma.notifications",
+            "org.kde.plasma.clipboard",
+            "org.kde.plasma.volume",
+            "org.kde.plasma.brightness",
+            "org.kde.plasma.battery",
+            "org.kde.plasma.bluetooth",
+            "org.kde.plasma.devicenotifier",
+            "org.kde.kdeconnect",
+            "org.kde.plasma.mediacontroller",
+            "org.kde.kscreen",
+            "org.kde.plasma.keyboardlayout",
+            "org.kde.plasma.keyboardindicator"
+        ]);
+        tray.writeConfig("shownItems", [
+            "org.kde.plasma.networkmanagement"
+        ]);
 
         var cc = panel.addWidget("KdeControlStation");
         cc.currentConfigGroup = ["Appearance"];
@@ -124,15 +118,19 @@ function ensureTopBar(panel, primaryTop) {
         cc.writeConfig("useCustomButtonImage", true);
         cc.writeConfig("customButtonImage", "@HOME@/.local/share/plasma/plasmoids/KdeControlStation/contents/assets/control-center-symbolic.svg");
 
+        var g = screenGeometry(panel.screen);
         var clock = panel.addWidget("org.kde.plasma.digitalclock");
         clock.currentConfigGroup = ["Appearance"];
         clock.writeConfig("showDate", true);
-        clock.writeConfig("dateDisplayFormat", "BesideTime");
+        clock.writeConfig("dateDisplayFormat", 1);
         clock.writeConfig("dateFormat", "custom");
         clock.writeConfig("customDateFormat", "ddd MMM d");
         clock.writeConfig("use24hFormat", 0);
         clock.writeConfig("autoFontAndSize", false);
-        clock.writeConfig("fontSize", 10);
+        clock.writeConfig("fontFamily", "SF Pro Text");
+        clock.writeConfig("fontWeight", 600);
+        clock.writeConfig("fontStyleName", "Semibold");
+        clock.writeConfig("fontSize", g.x > 0 ? 7 : 12);
         clock.writeConfig("boldText", true);
 
         var island = panel.addWidget("org.phobby.dynamicisland");
@@ -161,6 +159,60 @@ function ensureTopBar(panel, primaryTop) {
         if (existing.indexOf("org.macos.privacydots") === -1) {
             panel.addWidget("org.macos.privacydots");
         }
+        var g2 = screenGeometry(panel.screen);
+        var pw = panel.widgets();
+        for (var wi = 0; wi < pw.length; wi++) {
+            if (pw[wi].type === "org.kde.plasma.digitalclock") {
+                pw[wi].currentConfigGroup = ["Appearance"];
+                pw[wi].writeConfig("showDate", true);
+                pw[wi].writeConfig("dateDisplayFormat", 1);
+                pw[wi].writeConfig("dateFormat", "custom");
+                pw[wi].writeConfig("customDateFormat", "ddd MMM d");
+                pw[wi].writeConfig("use24hFormat", 0);
+                pw[wi].writeConfig("autoFontAndSize", false);
+                pw[wi].writeConfig("fontFamily", "SF Pro Text");
+                pw[wi].writeConfig("fontWeight", 600);
+                pw[wi].writeConfig("fontStyleName", "Semibold");
+                pw[wi].writeConfig("fontSize", g2.x > 0 ? 7 : 12);
+                pw[wi].writeConfig("boldText", true);
+            } else if (pw[wi].type === "org.kde.plasma.systemtray") {
+                pw[wi].currentConfigGroup = ["General"];
+                pw[wi].writeConfig("hiddenItems", [
+                    "org.kde.plasma.notifications",
+                    "org.kde.plasma.clipboard",
+                    "org.kde.plasma.volume",
+                    "org.kde.plasma.brightness",
+                    "org.kde.plasma.battery",
+                    "org.kde.plasma.bluetooth",
+                    "org.kde.plasma.devicenotifier",
+                    "org.kde.kdeconnect",
+                    "org.kde.plasma.mediacontroller",
+                    "org.kde.kscreen",
+                    "org.kde.plasma.keyboardlayout",
+                    "org.kde.plasma.keyboardindicator"
+                ]);
+                pw[wi].writeConfig("shownItems", [
+                    "org.kde.plasma.networkmanagement"
+                ]);
+            } else if (pw[wi].type === "org.kde.windowtitle") {
+                pw[wi].currentConfigGroup = ["Appearance"];
+                pw[wi].writeConfig("isBold", true);
+                pw[wi].writeConfig("visible", false);
+                pw[wi].writeConfig("noIcon", true);
+                pw[wi].writeConfig("activityIcon", false);
+                pw[wi].writeConfig("txt", "%a");
+                pw[wi].writeConfig("txtSameFound", "%a");
+                pw[wi].writeConfig("altTxt", "Finder");
+                pw[wi].writeConfig("fontSize", 13);
+                pw[wi].writeConfig("firstSpace", 6);
+                pw[wi].writeConfig("lastSpace", 10);
+                pw[wi].currentConfigGroup = ["Behavior"];
+                pw[wi].writeConfig("filterByScreen", false);
+            } else if (pw[wi].type === "org.kde.plasma.appmenu") {
+                pw[wi].currentConfigGroup = ["Appearance"];
+                pw[wi].writeConfig("allScreens", true);
+            }
+        }
     }
 }
 
@@ -185,7 +237,8 @@ function ensureBottomDock(panel, primaryBot) {
                 "applications:com.microsoft.VSCodeInsiders.desktop",
                 "applications:org.kde.konsole.desktop",
                 "applications:discord.desktop",
-                "applications:systemsettings.desktop"
+                "applications:systemsettings.desktop",
+                "applications:spotify-launcher.desktop"
             ]);
             tasks.writeConfig("showOnlyCurrentScreen", false);
             tasks.writeConfig("scaleAnimation", true);

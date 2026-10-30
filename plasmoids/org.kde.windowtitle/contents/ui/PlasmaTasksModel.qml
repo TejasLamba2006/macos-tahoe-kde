@@ -16,7 +16,7 @@ Item {
         activity: activityInfo.currentActivity
         virtualDesktop: virtualDesktopInfo.currentDesktop
 
-        filterByScreen: plasmoid.configuration.filterByScreen
+        filterByScreen: false
         filterByVirtualDesktop: true
         filterByActivity: true
     }
