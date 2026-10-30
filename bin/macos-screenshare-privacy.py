@@ -251,7 +251,17 @@ def poll_ports_and_handoff(bus):
         pass
     ports.sort(key=lambda x: x["port"])
 
-    # Handoff: check KDE Connect / ADB / Klipper for URLs
+    # Merge Handoff state written by macos-handoff-daemon.py
+    handoff_state = {}
+    handoff_state_path = f"/run/user/{os.getuid()}/macos-handoff-state.json"
+    if os.path.exists(handoff_state_path):
+        try:
+            with open(handoff_state_path, "r") as hf:
+                handoff_state = json.load(hf)
+        except Exception:
+            handoff_state = {}
+
+    # Also detect URLs copied on desktop via Klipper
     clip_text = ""
     try:
         klipper = bus.get_object("org.kde.klipper", "/klipper")
@@ -260,50 +270,19 @@ def poll_ports_and_handoff(bus):
     except Exception:
         pass
 
-    # If ADB phone is connected over wireless/USB, check if phone clipboard has a new URL
-    try:
-        st = subprocess.run(["adb", "get-state"], capture_output=True, text=True, timeout=0.4)
-        if st.returncode == 0 and "device" in st.stdout:
-            adb_clip = subprocess.run(
-                ["adb", "shell", "cmd", "clipboard", "get-text"],
-                capture_output=True, text=True, timeout=0.6
-            ).stdout.strip()
-            if adb_clip and adb_clip != LAST_HANDOFF_CLIP and len(adb_clip) < 4096:
-                LAST_HANDOFF_CLIP = adb_clip
-                if adb_clip != clip_text:
-                    try:
-                        clip_iface.setClipboardContents(adb_clip)
-                        clip_text = adb_clip
-                    except Exception:
-                        pass
-    except Exception:
-        pass
-
     m_url = re.match(r"^(https?://[^\s<>\"']+)$", clip_text)
     if m_url:
         found_url = m_url.group(1)
         if found_url != LAST_HANDOFF_URL:
             LAST_HANDOFF_URL = found_url
-            host = re.sub(r"^https?://(www\.)?", "", found_url).split("/")[0]
-            subprocess.Popen(
-                [
-                    os.path.expanduser("~/.local/bin/island-push"),
-                    "--id", "handoff-url",
-                    "--category", "transfer",
-                    "--title", "Handoff URL Ready",
-                    "--subtitle", host,
-                    "--icon", "internet-web-browser-symbolic",
-                    "--color", "blue",
-                    "--timeout", "12"
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
 
     payload = {
         "ports": ports,
-        "handoffUrl": LAST_HANDOFF_URL,
-        "handoffPreview": clip_text[:120] if clip_text else ""
+        "handoffConnected": bool(handoff_state.get("connected", False)),
+        "handoffDevice": handoff_state.get("device", ""),
+        "handoffUrl": handoff_state.get("handoffUrl") or LAST_HANDOFF_URL,
+        "handoffPreview": handoff_state.get("handoffPreview") or (clip_text[:120] if clip_text else ""),
+        "handoffImage": handoff_state.get("handoffImage", "")
     }
     try:
         tmp = PORTS_PATH + ".tmp"

@@ -1,0 +1,12 @@
+[Unit]
+Description=macOS Handoff Bidirectional Universal Clipboard (Text, URLs & Images)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 @HOME@/.local/bin/macos-handoff-daemon.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

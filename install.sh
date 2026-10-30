@@ -107,7 +107,7 @@ mkdir -p "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d" "$USER_H
 cp "$REPO_DIR/systemd/plasma-plasmashell.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d/"
 cp "$REPO_DIR/systemd/plasma-kwin_wayland.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d/"
 systemctl --user daemon-reload
-systemctl --user enable --now macos-multiscreen-dock.service macos-screenshare-privacy.service google-ical-sync.timer
+systemctl --user enable --now macos-multiscreen-dock.service macos-screenshare-privacy.service macos-handoff.service google-ical-sync.timer
 
 echo "==> Applying root-level patches (OSD pill, SDDM theme, Aerial binary patch, Network/DNS privacy)..."
 for osd_dir in /usr/lib/qt6/qml/org/kde/plasma/workspace/osd /usr/lib64/qt6/qml/org/kde/plasma/workspace/osd /usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/plasma/workspace/osd; do

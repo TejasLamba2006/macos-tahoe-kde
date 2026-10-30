@@ -24,6 +24,8 @@ Item {
     property var items: []
     property var activePorts: []
     property string handoffUrl: ""
+    property string handoffImage: ""
+    property bool handoffConnected: false
     property var dragger: null
     property bool camRunning: false
 
@@ -50,6 +52,8 @@ Item {
                     const data = JSON.parse(xhr.responseText);
                     if (Array.isArray(data.ports)) page.activePorts = data.ports;
                     page.handoffUrl = String(data.handoffUrl || "");
+                    page.handoffImage = String(data.handoffImage || "");
+                    page.handoffConnected = Boolean(data.handoffConnected);
                 } catch (e) {}
             }
         };
@@ -210,11 +214,11 @@ Item {
             }
         }
 
-        // Handoff Universal Clipboard & URL Banner (#5)
+        // Handoff Universal Clipboard & URL/Image Banner (#5)
         Rectangle {
-            visible: page.handoffUrl !== ""
+            visible: page.handoffUrl !== "" || page.handoffImage !== ""
             Layout.fillWidth: true
-            implicitHeight: 32
+            implicitHeight: 34
             radius: 10
             color: Qt.rgba(0.24, 0.56, 1.0, 0.18)
             border.width: 1
@@ -227,24 +231,31 @@ Item {
                 spacing: 8
 
                 Kirigami.Icon {
-                    source: "internet-web-browser-symbolic"
+                    source: page.handoffImage !== "" && page.handoffUrl === "" ? "image-x-generic-symbolic" : "internet-web-browser-symbolic"
                     Layout.preferredWidth: 15
                     Layout.preferredHeight: 15
                     color: page.theme.blue
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "Handoff: " + page.handoffUrl.replace(/^https?:\/\//, "")
+                    text: page.handoffUrl !== "" ? ("Handoff: " + page.handoffUrl.replace(/^https?:\/\//, "")) : ("Handoff Image: " + page.handoffImage.split("/").pop())
                     color: page.theme.text
                     font.pointSize: page.theme.fontSmall
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
                 PillButton {
+                    visible: page.handoffUrl !== ""
                     theme: page.theme
                     text: "Open Link"
                     primary: true
                     onClicked: page.openHandoffUrl()
+                }
+                PillButton {
+                    visible: page.handoffImage !== ""
+                    theme: page.theme
+                    text: "View Image"
+                    onClicked: Qt.openUrlExternally("file://" + page.handoffImage)
                 }
             }
         }
