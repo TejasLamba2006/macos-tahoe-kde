@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# ponytail: 1-line kill or open helper for Dynamic Island Ports & Handoff
+set -euo pipefail
+
+case "${1:-}" in
+    kill)
+        pid="${2:-}"
+        port="${3:-}"
+        if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
+            kill -15 "$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
+            ~/.local/bin/island-push --flash --title "Killed Port :$port" --subtitle "Process PID $pid terminated" --icon process-stop-symbolic --color red --duration 2500 2>/dev/null || true
+        fi
+        ;;
+    open-handoff)
+        url="${2:-}"
+        if [[ -n "$url" ]]; then
+            xdg-open "$url" >/dev/null 2>&1 &
+            ~/.local/bin/island-push --id handoff-url --done --status success 2>/dev/null || true
+        fi
+        ;;
+esac

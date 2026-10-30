@@ -4,6 +4,7 @@ import base64
 import glob
 import json
 import os
+import re
 import socket
 import subprocess
 import time
@@ -13,7 +14,17 @@ import dbus
 EMPTY_DIR = "/tmp/empty-desktop"
 os.makedirs(EMPTY_DIR, exist_ok=True)
 STATUS_PATH = f"/run/user/{os.getuid()}/macos-privacy-status.json"
+PORTS_PATH = f"/run/user/{os.getuid()}/macos-ports-status.json"
 POS_BACKUP_PATH = os.path.expanduser("~/.config/macos-desktop-positions-backup.json")
+
+IGNORE_PROCS = {
+    "systemd", "systemd-resolve", "kdeconnectd", "spotify", "Discord",
+    "chrome", "open-whispr-app", "sherpa-onnx-ws-", "openclaw-gatewa",
+    "cupsd", "sshd", "avahi-daemon", "dnsmasq", "warp-svc", "adb"
+}
+IGNORE_PORTS = {53, 631, 1716, 5037, 5355, 6006, 6463, 8200, 9222, 9223, 18789, 18791, 18792}
+LAST_HANDOFF_CLIP = ""
+LAST_HANDOFF_URL = ""
 
 WA_INJECT_JS = r"""
 (() => {
@@ -194,6 +205,114 @@ def poll_privacy_status():
         pass
     return bool(screen_apps)
 
+def poll_ports_and_handoff(bus):
+    global LAST_HANDOFF_CLIP, LAST_HANDOFF_URL
+    ports = []
+    seen_ports = set()
+    try:
+        out = subprocess.check_output(["ss", "-tlnp"], text=True, stderr=subprocess.DEVNULL, timeout=1.0)
+        for line in out.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            local_addr = parts[3]
+            m_port = re.search(r":(\d+)$", local_addr)
+            if not m_port:
+                continue
+            port = int(m_port.group(1))
+            if port in IGNORE_PORTS or port in seen_ports or port < 1024:
+                continue
+            m_proc = re.search(r'\("([^"]+)",pid=(\d+)', line)
+            if not m_proc:
+                continue
+            proc_name, pid_str = m_proc.group(1), m_proc.group(2)
+            if proc_name in IGNORE_PROCS:
+                continue
+            # Skip ephemeral high ports (>32768) unless common dev runtime
+            if port >= 32768 and proc_name not in ("node", "bun", "deno", "python", "python3", "uvicorn", "gunicorn", "vite", "next-server", "ruby", "go", "cargo", "php", "java"):
+                continue
+            cmdline = proc_name
+            try:
+                raw_cmd = open(f"/proc/{pid_str}/cmdline", "rb").read().replace(b"\x00", b" ").decode("utf-8", errors="ignore").strip()
+                if raw_cmd:
+                    short = " ".join(os.path.basename(tok) if tok.startswith("/") else tok for tok in raw_cmd.split()[:3])
+                    cmdline = short[:42]
+            except Exception:
+                pass
+            seen_ports.add(port)
+            ports.append({
+                "port": port,
+                "pid": int(pid_str),
+                "name": proc_name,
+                "cmd": cmdline,
+                "url": f"http://localhost:{port}"
+            })
+    except Exception:
+        pass
+    ports.sort(key=lambda x: x["port"])
+
+    # Handoff: check KDE Connect / ADB / Klipper for URLs
+    clip_text = ""
+    try:
+        klipper = bus.get_object("org.kde.klipper", "/klipper")
+        clip_iface = dbus.Interface(klipper, "org.kde.klipper.klipper")
+        clip_text = str(clip_iface.getClipboardContents() or "").strip()
+    except Exception:
+        pass
+
+    # If ADB phone is connected over wireless/USB, check if phone clipboard has a new URL
+    try:
+        st = subprocess.run(["adb", "get-state"], capture_output=True, text=True, timeout=0.4)
+        if st.returncode == 0 and "device" in st.stdout:
+            adb_clip = subprocess.run(
+                ["adb", "shell", "cmd", "clipboard", "get-text"],
+                capture_output=True, text=True, timeout=0.6
+            ).stdout.strip()
+            if adb_clip and adb_clip != LAST_HANDOFF_CLIP and len(adb_clip) < 4096:
+                LAST_HANDOFF_CLIP = adb_clip
+                if adb_clip != clip_text:
+                    try:
+                        clip_iface.setClipboardContents(adb_clip)
+                        clip_text = adb_clip
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    m_url = re.match(r"^(https?://[^\s<>\"']+)$", clip_text)
+    if m_url:
+        found_url = m_url.group(1)
+        if found_url != LAST_HANDOFF_URL:
+            LAST_HANDOFF_URL = found_url
+            host = re.sub(r"^https?://(www\.)?", "", found_url).split("/")[0]
+            subprocess.Popen(
+                [
+                    os.path.expanduser("~/.local/bin/island-push"),
+                    "--id", "handoff-url",
+                    "--category", "transfer",
+                    "--title", "Handoff URL Ready",
+                    "--subtitle", host,
+                    "--icon", "internet-web-browser-symbolic",
+                    "--color", "blue",
+                    "--timeout", "12"
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+    payload = {
+        "ports": ports,
+        "handoffUrl": LAST_HANDOFF_URL,
+        "handoffPreview": clip_text[:120] if clip_text else ""
+    }
+    try:
+        tmp = PORTS_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(payload, f)
+        os.replace(tmp, PORTS_PATH)
+    except Exception:
+        pass
+
 def set_desktop_icons_visible(visible):
     if not visible:
         # Only overwrite backup if desktop is currently showing real desktop:/ icons (not empty-desktop)
@@ -272,6 +391,7 @@ def main():
     while True:
         ensure_whatsapp_blur()
         raw_sharing = poll_privacy_status()
+        poll_ports_and_handoff(bus)
 
         if not boot_healed and not raw_sharing:
             set_desktop_icons_visible(True)

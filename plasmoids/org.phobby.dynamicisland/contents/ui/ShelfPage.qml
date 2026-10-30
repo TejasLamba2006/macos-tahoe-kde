@@ -19,14 +19,56 @@ Item {
     readonly property bool interacting: visible && dragging
     readonly property bool holdOpen: visible && (dragging || dropping)
     readonly property bool asking: false
-    readonly property bool tall: visible && items.length > 2
+    readonly property bool tall: visible && (items.length > 2 || activePorts.length > 0 || handoffUrl !== "")
 
     property var items: []
+    property var activePorts: []
+    property string handoffUrl: ""
     property var dragger: null
     property bool camRunning: false
 
-    Component.onCompleted: loadShelf()
+    Component.onCompleted: {
+        loadShelf();
+        pollPortsAndHandoff();
+    }
     onSavedShelfChanged: loadShelf()
+
+    Timer {
+        interval: 2500
+        running: page.visible
+        repeat: true
+        onTriggered: page.pollPortsAndHandoff()
+    }
+
+    function pollPortsAndHandoff(): void {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "file:///run/user/1000/macos-ports-status.json", true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE && (xhr.status === 200 || xhr.status === 0)) {
+                if (!xhr.responseText) return;
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (Array.isArray(data.ports)) page.activePorts = data.ports;
+                    page.handoffUrl = String(data.handoffUrl || "");
+                } catch (e) {}
+            }
+        };
+        xhr.send();
+    }
+
+    function killPort(pid: int, port: int): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-port-ctl", ["kill", String(pid), String(port)]);
+        activePorts = activePorts.filter(p => p.port !== port);
+    }
+
+    function openHandoffUrl(): void {
+        if (!handoffUrl) return;
+        Qt.openUrlExternally(handoffUrl);
+        if (core) {
+            core.startDetached("@HOME@/.local/bin/macos-port-ctl", ["open-handoff", handoffUrl]);
+        }
+    }
 
     function loadShelf(): void {
         try {
@@ -164,6 +206,107 @@ Item {
                     text: "Front"
                     visible: !page.camRunning
                     onClicked: page.toggleContinuityCamera("front")
+                }
+            }
+        }
+
+        // Handoff Universal Clipboard & URL Banner (#5)
+        Rectangle {
+            visible: page.handoffUrl !== ""
+            Layout.fillWidth: true
+            implicitHeight: 32
+            radius: 10
+            color: Qt.rgba(0.24, 0.56, 1.0, 0.18)
+            border.width: 1
+            border.color: page.theme.blue
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 8
+                spacing: 8
+
+                Kirigami.Icon {
+                    source: "internet-web-browser-symbolic"
+                    Layout.preferredWidth: 15
+                    Layout.preferredHeight: 15
+                    color: page.theme.blue
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "Handoff: " + page.handoffUrl.replace(/^https?:\/\//, "")
+                    color: page.theme.text
+                    font.pointSize: page.theme.fontSmall
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                PillButton {
+                    theme: page.theme
+                    text: "Open Link"
+                    primary: true
+                    onClicked: page.openHandoffUrl()
+                }
+            }
+        }
+
+        // Live Localhost Dev Ports Manager (#10)
+        ColumnLayout {
+            visible: page.activePorts.length > 0
+            Layout.fillWidth: true
+            spacing: 4
+
+            Text {
+                text: "Active Localhost Dev Ports (" + page.activePorts.length + ")"
+                color: page.theme.subText
+                font.pointSize: page.theme.fontTiny
+                font.weight: Font.DemiBold
+            }
+
+            Repeater {
+                model: page.activePorts.slice(0, 4)
+                delegate: Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    implicitHeight: 28
+                    radius: 8
+                    color: page.theme.faint
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 6
+                        spacing: 6
+
+                        Rectangle {
+                            width: 7
+                            height: 7
+                            radius: 3.5
+                            color: page.theme.live
+                        }
+                        Text {
+                            text: ":" + modelData.port
+                            color: page.theme.live
+                            font.pointSize: page.theme.fontSmall
+                            font.weight: Font.Bold
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.name + " (PID " + modelData.pid + ")"
+                            color: page.theme.text
+                            font.pointSize: page.theme.fontSmall
+                            elide: Text.ElideRight
+                        }
+                        PillButton {
+                            theme: page.theme
+                            text: "Open"
+                            onClicked: Qt.openUrlExternally(modelData.url)
+                        }
+                        PillButton {
+                            theme: page.theme
+                            text: "Kill"
+                            onClicked: page.killPort(modelData.pid, modelData.port)
+                        }
+                    }
                 }
             }
         }
