@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ponytail: watches PipeWire screen-sharing (debounced 2-tick start / 3-tick stop), writes /run/user/UID/macos-privacy-status.json for top bar dots, and keeps WhatsApp Web Privacy Blur active (#5)
+# ponytail: watches PipeWire screen-sharing (debounced 2-tick start / 3-tick stop), snapshots & restores exact desktop icon positions, writes /run/user/UID/macos-privacy-status.json, and keeps WhatsApp Web Privacy Blur active
 import base64
 import glob
 import json
@@ -13,6 +13,7 @@ import dbus
 EMPTY_DIR = "/tmp/empty-desktop"
 os.makedirs(EMPTY_DIR, exist_ok=True)
 STATUS_PATH = f"/run/user/{os.getuid()}/macos-privacy-status.json"
+POS_BACKUP_PATH = os.path.expanduser("~/.config/macos-desktop-positions-backup.json")
 
 WA_INJECT_JS = r"""
 (() => {
@@ -149,7 +150,7 @@ def poll_privacy_status():
                 if app_name and app_name not in mic_apps and "Peak detect" not in app_name:
                     mic_apps.append(app_name)
             elif mc in ("Stream/Input/Video", "Stream/Output/Video"):
-                if any(k in node_name.lower() for k in ("kwin", "xdpw", "screen", "portal", "webrtc")):
+                if any(k in node_name.lower() for k in ("kwin", "xdpw", "screen", "portal", "webrtc", "gsr")):
                     if app_name and app_name not in screen_apps:
                         screen_apps.append(app_name)
             elif mc == "Video/Source":
@@ -194,19 +195,70 @@ def poll_privacy_status():
     return bool(screen_apps)
 
 def set_desktop_icons_visible(visible):
-    url = "desktop:/" if visible else "file:///tmp/empty-desktop"
-    js = f"""
-    var d = desktops();
-    for (var i = 0; i < d.length; i++) {{
-        d[i].currentConfigGroup = ["General"];
-        d[i].writeConfig("url", "{url}");
-    }}
-    """
-    subprocess.run(
-        ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    if not visible:
+        # Snapshot current desktop icon positions BEFORE hiding icons
+        js_read = """
+        var out = {};
+        var d = desktops();
+        for (var i = 0; i < d.length; i++) {
+            d[i].currentConfigGroup = ["General"];
+            var pos = d[i].readConfig("positions");
+            if (pos && pos.length > 2) {
+                out[d[i].id] = pos;
+            }
+        }
+        print(JSON.stringify(out));
+        """
+        try:
+            res = subprocess.check_output(
+                ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_read],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            if res and res != "{}":
+                with open(POS_BACKUP_PATH, "w") as f:
+                    f.write(res)
+        except Exception:
+            pass
+
+        js_hide = """
+        var d = desktops();
+        for (var i = 0; i < d.length; i++) {
+            d[i].currentConfigGroup = ["General"];
+            d[i].writeConfig("url", "file:///tmp/empty-desktop");
+        }
+        """
+        subprocess.run(
+            ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_hide],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        # Restore desktop:/ URL and immediately restore backed-up icon positions
+        saved = {}
+        if os.path.exists(POS_BACKUP_PATH):
+            try:
+                with open(POS_BACKUP_PATH, "r") as f:
+                    saved = json.load(f)
+            except Exception:
+                saved = {}
+        saved_json = json.dumps(saved)
+        js_restore = f"""
+        var saved = {saved_json};
+        var d = desktops();
+        for (var i = 0; i < d.length; i++) {{
+            d[i].currentConfigGroup = ["General"];
+            d[i].writeConfig("url", "desktop:/");
+            if (saved[d[i].id]) {{
+                d[i].writeConfig("positions", saved[d[i].id]);
+            }}
+        }}
+        """
+        subprocess.run(
+            ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_restore],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 def main():
     bus = dbus.SessionBus()
@@ -226,7 +278,6 @@ def main():
             stop_streak += 1
             share_streak = 0
 
-        # Require 2 consecutive ticks (4s) to activate, and 3 consecutive ticks (6s) to deactivate
         if share_streak >= 2 and not was_sharing:
             try:
                 notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")

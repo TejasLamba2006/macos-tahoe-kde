@@ -123,7 +123,7 @@ for f in Main.qml Login.qml theme.conf; do
     sudo mv "$tmp" "/usr/share/sddm/themes/macos-tahoe/$f"
 done
 sudo cp "$REPO_DIR/etc/00-macos-privacy.conf" /etc/NetworkManager/conf.d/
-sudo cp "$REPO_DIR/etc/10-macos-privacy.conf" /etc/systemd/resolved.conf.d/
+sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 if [ -d /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui ]; then
     tmp="/tmp/aerial-main.qml"
     apply_template "$REPO_DIR/patches/aerial-main.qml" "$tmp"
