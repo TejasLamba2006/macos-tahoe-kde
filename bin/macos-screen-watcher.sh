@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# ponytail: self-healing multi-screen daemon — preserves user widgets, auto-recovers disabled-screen desktop icons, and syncs N monitors
+# ponytail: event-driven multi-screen daemon — never polls evaluateScript in a loop; adds Restart=always drop-in to plasma-plasmashell
 
 wait_for_plasma() {
     for _ in $(seq 1 30); do
-        if qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "print(screenCount);" >/dev/null 2>&1; then
+        if busctl --user status org.kde.plasmashell >/dev/null 2>&1; then
+            sleep 1
             return 0
         fi
         sleep 1
@@ -26,7 +27,6 @@ m_dis = re.search(r"^itemsOnDisabledScreens=(.+)$", text, re.M)
 m_map = re.search(r"^screenMapping=(.*)$", text, re.M)
 if m_dis and m_dis.group(1).strip():
     parts = [p.strip() for p in m_dis.group(1).strip().split(",") if p.strip()]
-    # Format: screenIdx,activityId,count,item1,item2,...
     if len(parts) >= 4:
         scr, act = parts[0], parts[1]
         items = [p for p in parts[3:] if p.startswith("desktop:/")]
@@ -44,25 +44,22 @@ wait_for_plasma && {
     ~/.local/bin/macos-multiscreen-sync.sh
 }
 
+LAST_OUTPUTS=""
 while true; do
-    sleep 10
-    heal_desktop_icons
-    STATE=$(qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
-        var n = screenCount;
-        var p = panels().filter(function(x){ return x.screen >= 0 && x.screen < n; });
-        var wps = desktops().map(function(d){ return d.wallpaperPlugin; }).join(",");
-        var hasTop = 0, hasBot = 0;
-        for (var i = 0; i < p.length; i++) {
-            if (p[i].location === "top" && p[i].widgets().length >= 5) hasTop++;
-            if (p[i].location === "bottom" && p[i].widgets().length >= 4) hasBot++;
-        }
-        print(n + ":" + hasTop + ":" + hasBot + ":" + wps);
-    ' 2>/dev/null || true)
+    sleep 15
+    if ! busctl --user status org.kde.plasmashell >/dev/null 2>&1; then
+        systemctl --user reset-failed plasma-plasmashell.service 2>/dev/null || true
+        systemctl --user start plasma-plasmashell.service 2>/dev/null || true
+        sleep 4
+        heal_desktop_icons
+        ~/.local/bin/macos-multiscreen-sync.sh
+        continue
+    fi
 
-    if [ -n "$STATE" ]; then
-        IFS=":" read -r SCREENS HASTOP HASBOT WPS <<< "$STATE"
-        if [ "$HASTOP" -lt "$SCREENS" ] || [ "$HASBOT" -lt "$SCREENS" ] || echo "$WPS" | grep -qv "io.github.birkneralex.aerial"; then
-            ~/.local/bin/macos-multiscreen-sync.sh
-        fi
+    heal_desktop_icons
+    CUR_OUTPUTS=$(kscreen-doctor -o 2>/dev/null | grep -E "Output:" | sort | tr '\n' '|' || true)
+    if [ -n "$CUR_OUTPUTS" ] && [ "$CUR_OUTPUTS" != "$LAST_OUTPUTS" ]; then
+        LAST_OUTPUTS="$CUR_OUTPUTS"
+        ~/.local/bin/macos-multiscreen-sync.sh
     fi
 done
