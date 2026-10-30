@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# ponytail: macOS Sequoia "iPhone Mirroring" + Bluetooth HFP / KDE Connect / ADB Phone Call & Dialer controller
+set -euo pipefail
+
+MIRROR_PID_FILE="/run/user/$(id -u)/macos-phone-mirror.pid"
+
+find_adb_serial() {
+    local ser
+    ser=$(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+$' | head -1 || true)
+    if [[ -z "$ser" ]]; then
+        ser=$(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1}' | head -1 || true)
+    fi
+    if [[ -z "$ser" ]]; then
+        local target
+        target=$(timeout 1.5 avahi-browse -rp _adb-tls-connect._tcp 2>/dev/null | awk -F';' '/^=.*IPv4/ {print $8":"$9; exit}' || true)
+        if [[ -n "$target" ]]; then
+            adb connect "$target" >/dev/null 2>&1 || true
+            ser="$target"
+        fi
+    fi
+    echo "$ser"
+}
+
+find_ag_path() {
+    busctl --user call org.pipewire.Telephony /org/pipewire/Telephony org.ofono.Manager GetModems 2>/dev/null \
+        | grep -oE '/org/pipewire/Telephony/ag[0-9]+' | head -1 || true
+}
+
+ensure_bt_hfp() {
+    local ag
+    ag=$(find_ag_path)
+    if [[ -n "$ag" ]]; then
+        echo "$ag"
+        return 0
+    fi
+    rfkill unblock bluetooth 2>/dev/null || true
+    bluetoothctl power on >/dev/null 2>&1 || true
+    local mac
+    mac=$(bluetoothctl devices Paired 2>/dev/null | awk '{print $2; exit}' || true)
+    if [[ -n "$mac" ]]; then
+        bluetoothctl connect "$mac" 0000111f-0000-1000-8000-00805f9b34fb >/dev/null 2>&1 || bluetoothctl connect "$mac" >/dev/null 2>&1 || true
+        sleep 1
+    fi
+    find_ag_path
+}
+
+is_mirror_running() {
+    [[ -f "$MIRROR_PID_FILE" ]] && kill -0 "$(cat "$MIRROR_PID_FILE")" 2>/dev/null
+}
+
+start_mirror() {
+    if is_mirror_running; then
+        stop_mirror
+        exit 0
+    fi
+    local ser
+    ser=$(find_adb_serial)
+    if [[ -z "$ser" ]]; then
+        if ! ~/.local/bin/macos-adb-pair.py; then
+            exit 1
+        fi
+        ser=$(find_adb_serial)
+    fi
+    nohup scrcpy -s "$ser" \
+        --window-title="iPhone Mirroring" \
+        --always-on-top \
+        --window-width=380 \
+        --window-height=820 \
+        --stay-awake \
+        --turn-screen-off \
+        >/dev/null 2>&1 &
+    echo $! > "$MIRROR_PID_FILE"
+    ~/.local/bin/island-push --flash --title "Phone Mirroring Active" --subtitle "Full touch, keyboard & audio mirrored" --icon smartphone-symbolic --color green --duration 3000 2>/dev/null || true
+}
+
+stop_mirror() {
+    if is_mirror_running; then
+        kill "$(cat "$MIRROR_PID_FILE")" 2>/dev/null || true
+        rm -f "$MIRROR_PID_FILE"
+    fi
+    pkill -f 'scrcpy.*--window-title=iPhone Mirroring' 2>/dev/null || true
+}
+
+dial_number() {
+    local num="${1:-}"
+    num=$(echo "$num" | tr -cd '0-9+*#')
+    if [[ -z "$num" ]]; then
+        exit 1
+    fi
+    local ag
+    ag=$(ensure_bt_hfp)
+    if [[ -n "$ag" ]]; then
+        busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager Dial s "$num" >/dev/null 2>&1 && {
+            busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
+            ~/.local/bin/island-push --id phone-call --category call --title "Calling $num" --subtitle "Audio routed to Mac Mic & Speakers (HFP)" --icon call-start-symbolic --color green --priority 95 2>/dev/null || true
+            exit 0
+        }
+    fi
+    local ser
+    ser=$(find_adb_serial)
+    if [[ -n "$ser" ]]; then
+        adb -s "$ser" shell am start -a android.intent.action.CALL -d "tel:$num" >/dev/null 2>&1 || true
+        ~/.local/bin/island-push --id phone-call --category call --title "Calling $num" --subtitle "Dialing via Phone" --icon call-start-symbolic --color green --priority 95 2>/dev/null || true
+    fi
+}
+
+answer_call() {
+    local ag
+    ag=$(ensure_bt_hfp)
+    if [[ -n "$ag" ]]; then
+        # Answer incoming call object via org.ofono.VoiceCall Answer or HoldAndAnswer
+        local call_path
+        call_path=$(busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager GetCalls 2>/dev/null | grep -oE '/org/pipewire/Telephony/ag[0-9]+/call[0-9]+' | head -1 || true)
+        if [[ -n "$call_path" ]]; then
+            busctl --user call org.pipewire.Telephony "$call_path" org.ofono.VoiceCall Answer >/dev/null 2>&1 || true
+        else
+            busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager HoldAndAnswer >/dev/null 2>&1 || true
+        fi
+        busctl --user call org.pipewire.Telephony "$ag" org.pipewire.Telephony.AudioGatewayTransport1 Activate >/dev/null 2>&1 || true
+    fi
+    local ser
+    ser=$(find_adb_serial)
+    if [[ -n "$ser" ]]; then
+        adb -s "$ser" shell input keyevent 5 >/dev/null 2>&1 || true
+    fi
+}
+
+hangup_call() {
+    local ag
+    ag=$(find_ag_path)
+    if [[ -n "$ag" ]]; then
+        busctl --user call org.pipewire.Telephony "$ag" org.ofono.VoiceCallManager HangupAll >/dev/null 2>&1 || true
+    fi
+    local ser
+    ser=$(find_adb_serial)
+    if [[ -n "$ser" ]]; then
+        adb -s "$ser" shell input keyevent 6 >/dev/null 2>&1 || true
+    fi
+    ~/.local/bin/island-push --id phone-call --done --status cancel 2>/dev/null || true
+}
+
+case "${1:-}" in
+    mirror) start_mirror ;;
+    stop-mirror) stop_mirror ;;
+    dial) dial_number "${2:-}" ;;
+    answer) answer_call ;;
+    hangup) hangup_call ;;
+    connect-audio) ensure_bt_hfp ;;
+esac

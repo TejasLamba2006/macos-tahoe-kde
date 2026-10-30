@@ -16,16 +16,21 @@ Item {
 
     property bool dragging: false
     property bool dropping: false
-    readonly property bool interacting: visible && dragging
-    readonly property bool holdOpen: visible && (dragging || dropping)
+    readonly property bool interacting: visible && (dragging || dialInput.input.activeFocus)
+    readonly property bool holdOpen: visible && (dragging || dropping || dialInput.input.activeFocus)
     readonly property bool asking: false
-    readonly property bool tall: visible && (items.length > 2 || activePorts.length > 0 || handoffUrl !== "")
+    readonly property bool tall: visible
 
     property var items: []
     property var activePorts: []
     property string handoffUrl: ""
     property string handoffImage: ""
     property bool handoffConnected: false
+    property bool hfpConnected: false
+    property bool mirrorRunning: false
+    property string callState: ""
+    property string callNumber: ""
+    property string callName: ""
     property var dragger: null
     property bool camRunning: false
 
@@ -54,10 +59,39 @@ Item {
                     page.handoffUrl = String(data.handoffUrl || "");
                     page.handoffImage = String(data.handoffImage || "");
                     page.handoffConnected = Boolean(data.handoffConnected);
+                    page.hfpConnected = Boolean(data.hfpConnected);
+                    page.mirrorRunning = Boolean(data.mirrorRunning);
+                    page.callState = String(data.callState || "");
+                    page.callNumber = String(data.callNumber || "");
+                    page.callName = String(data.callName || "");
                 } catch (e) {}
             }
         };
         xhr.send();
+    }
+
+    function togglePhoneMirror(): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", [mirrorRunning ? "stop-mirror" : "mirror"]);
+        mirrorRunning = !mirrorRunning;
+    }
+
+    function dialPhone(num: string): void {
+        if (!core || !num) return;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["dial", num]);
+        dialInput.text = "";
+    }
+
+    function answerCall(): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["answer"]);
+        callState = "active";
+    }
+
+    function hangupCall(): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-phone-ctl", ["hangup"]);
+        callState = "";
     }
 
     function killPort(pid: int, port: int): void {
@@ -210,6 +244,72 @@ Item {
                     text: "Front"
                     visible: !page.camRunning
                     onClicked: page.toggleContinuityCamera("front")
+                }
+            }
+        }
+
+        // Phone Mirroring & Bluetooth HFP Call / Dialer Bar
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 34
+            radius: 10
+            color: page.callState !== "" ? Qt.rgba(0.20, 0.78, 0.35, 0.25) : page.theme.faint
+            border.width: 1
+            border.color: page.callState !== "" ? page.theme.live : "transparent"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                spacing: 6
+
+                PillButton {
+                    theme: page.theme
+                    text: page.mirrorRunning ? "Stop Mirror" : "Mirror Phone"
+                    primary: page.mirrorRunning
+                    onClicked: page.togglePhoneMirror()
+                }
+
+                PillField {
+                    id: dialInput
+                    visible: page.callState === ""
+                    theme: page.theme
+                    Layout.fillWidth: true
+                    placeholder: page.hfpConnected ? "Dial number (Mac Mic + Speaker HFP)…" : "Enter number to call…"
+                    onAccepted: page.dialPhone(dialInput.text)
+                }
+
+                Text {
+                    visible: page.callState !== ""
+                    Layout.fillWidth: true
+                    text: (page.callState === "incoming" ? "Incoming: " : "On Call: ") + (page.callName || page.callNumber)
+                    color: page.theme.text
+                    font.pointSize: page.theme.fontSmall
+                    font.weight: Font.Bold
+                    elide: Text.ElideRight
+                }
+
+                PillButton {
+                    visible: page.callState === ""
+                    theme: page.theme
+                    text: "Call"
+                    primary: dialInput.text.length > 0
+                    onClicked: page.dialPhone(dialInput.text)
+                }
+
+                PillButton {
+                    visible: page.callState === "incoming"
+                    theme: page.theme
+                    text: "Answer"
+                    primary: true
+                    onClicked: page.answerCall()
+                }
+
+                PillButton {
+                    visible: page.callState !== ""
+                    theme: page.theme
+                    text: "Hang Up"
+                    onClicked: page.hangupCall()
                 }
             }
         }

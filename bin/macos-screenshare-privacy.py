@@ -280,6 +280,11 @@ def poll_ports_and_handoff(bus):
         "ports": ports,
         "handoffConnected": bool(handoff_state.get("connected", False)),
         "handoffDevice": handoff_state.get("device", ""),
+        "hfpConnected": bool(handoff_state.get("hfpConnected", False)),
+        "mirrorRunning": bool(handoff_state.get("mirrorRunning", False)),
+        "callState": handoff_state.get("callState", ""),
+        "callNumber": handoff_state.get("callNumber", ""),
+        "callName": handoff_state.get("callName", ""),
         "handoffUrl": handoff_state.get("handoffUrl") or LAST_HANDOFF_URL,
         "handoffPreview": handoff_state.get("handoffPreview") or (clip_text[:120] if clip_text else ""),
         "handoffImage": handoff_state.get("handoffImage", "")

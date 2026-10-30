@@ -38,6 +38,82 @@ class HandoffBridge:
         self.handoff_url = ""
         self.handoff_preview = ""
         self.handoff_image = ""
+        self.call_state = ""       # "", "incoming", "dialing", "active"
+        self.call_number = ""
+        self.call_name = ""
+        self.hfp_connected = False
+        self.mirror_running = False
+
+    def check_telephony_and_mirror(self):
+        # 1. Check if iPhone Mirroring window is running
+        pid_file = f"/run/user/{os.getuid()}/macos-phone-mirror.pid"
+        self.mirror_running = False
+        if os.path.exists(pid_file):
+            try:
+                pid = int(open(pid_file).read().strip())
+                os.kill(pid, 0)
+                self.mirror_running = True
+            except Exception:
+                pass
+
+        # 2. Check PipeWire Bluetooth HFP AudioGateway1 & active calls
+        try:
+            mgr = self.bus.get_object("org.pipewire.Telephony", "/org/pipewire/Telephony")
+            om = dbus.Interface(mgr, "org.freedesktop.DBus.ObjectManager")
+            objs = om.GetManagedObjects()
+            ag_paths = [p for p, ifs in objs.items() if "org.pipewire.Telephony.AudioGateway1" in ifs]
+            self.hfp_connected = bool(ag_paths)
+
+            active_call_found = False
+            for path, ifs in objs.items():
+                if "org.ofono.VoiceCall" in ifs:
+                    props = ifs["org.ofono.VoiceCall"]
+                    state = str(props.get("State", ""))
+                    line_id = str(props.get("LineIdentification", ""))
+                    name = str(props.get("Name", "")) or line_id or "Phone Call"
+                    if state in ("incoming", "waiting", "dialing", "alerting", "active", "held"):
+                        active_call_found = True
+                        prev_state = self.call_state
+                        self.call_state = "incoming" if state in ("incoming", "waiting") else ("dialing" if state in ("dialing", "alerting") else "active")
+                        self.call_number = line_id
+                        self.call_name = name
+                        if self.call_state != prev_state:
+                            sub = f"Incoming Call • {line_id}" if self.call_state == "incoming" else f"Speaking on Mac (HFP) • {line_id}"
+                            subprocess.Popen(
+                                [
+                                    os.path.expanduser("~/.local/bin/island-push"),
+                                    "--id", "phone-call",
+                                    "--category", "call",
+                                    "--title", name,
+                                    "--subtitle", sub,
+                                    "--icon", "call-start-symbolic",
+                                    "--color", "green",
+                                    "--priority", "98",
+                                ],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                            )
+                        break
+
+            if not active_call_found and self.call_state:
+                self.call_state = ""
+                self.call_number = ""
+                self.call_name = ""
+                subprocess.Popen(
+                    [os.path.expanduser("~/.local/bin/island-push"), "--id", "phone-call", "--done", "--status", "cancel"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except Exception:
+            self.hfp_connected = False
+
+        if not self.hfp_connected and getattr(self, "_bt_tick", 0) % 15 == 0:
+            subprocess.Popen(
+                [os.path.expanduser("~/.local/bin/macos-phone-ctl"), "connect-audio"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        self._bt_tick = getattr(self, "_bt_tick", 0) + 1
 
     def scan_download_images(self):
         dl = os.path.expanduser("~/Downloads")
@@ -50,8 +126,13 @@ class HandoffBridge:
 
     def write_state(self):
         state = {
-            "connected": bool(self.conn is not None or self.kde_dev),
+            "connected": bool(self.conn is not None or self.kde_dev or self.hfp_connected),
             "device": self.serial or self.kde_dev or "",
+            "hfpConnected": self.hfp_connected,
+            "mirrorRunning": self.mirror_running,
+            "callState": self.call_state,
+            "callNumber": self.call_number,
+            "callName": self.call_name,
             "handoffUrl": self.handoff_url,
             "handoffPreview": self.handoff_preview,
             "handoffImage": self.handoff_image,
@@ -411,6 +492,7 @@ class HandoffBridge:
         tick = 0
         while True:
             self.find_kdeconnect_device()
+            self.check_telephony_and_mirror()
             if self.conn is None and tick % 5 == 0:
                 self.connect_scrcpy_server()
             self.write_state()
