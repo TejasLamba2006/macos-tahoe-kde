@@ -36,16 +36,24 @@ set_audio_route() {
     local card
     card=$(get_bt_card)
     if [[ -z "$mode" || "$mode" == "toggle" ]]; then
-        local cur="laptop"
-        [[ -f "$AUDIO_ROUTE_FILE" ]] && cur=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "laptop")
+        local cur="phone"
+        [[ -f "$AUDIO_ROUTE_FILE" ]] && cur=$(cat "$AUDIO_ROUTE_FILE" 2>/dev/null || echo "phone")
         if [[ "$cur" == "laptop" ]]; then mode="phone"; else mode="laptop"; fi
     fi
     echo "$mode" > "$AUDIO_ROUTE_FILE"
 
     if [[ "$mode" == "phone" ]]; then
-        # Keep phone media + call audio on phone speaker (do not hijack A2DP/SCO on laptop)
-        if [[ -n "$card" ]]; then
-            pactl set-card-profile "$card" off 2>/dev/null || true
+        # Disable A2DP Audio Sink on laptop so Android never routes phone media/reels to PC, while keeping HFP call gateway ready
+        cat > "$HOME/.config/wireplumber/wireplumber.conf.d/50-macos-hfp-hf.conf" << 'EOF'
+monitor.bluez.properties = {
+  bluez5.roles = [ a2dp_sink bap_sink bap_source hsp_hs hsp_ag hfp_hf hfp_ag ]
+  bluez5.hfphsp-backend = "native"
+}
+EOF
+        local mac
+        mac=$(bluetoothctl devices Paired 2>/dev/null | awk '{print $2; exit}' || true)
+        if [[ -n "$mac" ]]; then
+            busctl --system call org.bluez "/org/bluez/hci0/dev_${mac//:/_}" org.bluez.Device1 DisconnectProfile s "0000110a-0000-1000-8000-00805f9b34fb" >/dev/null 2>&1 || true
         fi
         local ag
         ag=$(find_ag_path)
@@ -54,8 +62,21 @@ set_audio_route() {
         fi
         ~/.local/bin/island-push --flash --title "Phone Audio → Phone" --subtitle "Media & calls play on your phone speaker" --icon smartphone-symbolic --color orange --duration 2500 2>/dev/null || true
     else
-        # Route phone audio & calls through Laptop Mic & Speakers
+        # Enable A2DP Source + HFP so phone media and calls play through Laptop Mic & Speakers
+        cat > "$HOME/.config/wireplumber/wireplumber.conf.d/50-macos-hfp-hf.conf" << 'EOF'
+monitor.bluez.properties = {
+  bluez5.roles = [ a2dp_sink a2dp_source bap_sink bap_source hsp_hs hsp_ag hfp_hf hfp_ag ]
+  bluez5.hfphsp-backend = "native"
+}
+EOF
+        systemctl --user restart wireplumber 2>/dev/null || true
+        sleep 1.5
         ensure_bt_hfp >/dev/null 2>&1 || true
+        local mac
+        mac=$(bluetoothctl devices Paired 2>/dev/null | awk '{print $2; exit}' || true)
+        if [[ -n "$mac" ]]; then
+            bluetoothctl connect "$mac" >/dev/null 2>&1 || true
+        fi
         card=$(get_bt_card)
         if [[ -n "$card" ]]; then
             pactl set-card-profile "$card" audio-gateway 2>/dev/null || true
