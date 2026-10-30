@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ponytail: non-destructive multi-screen sync — adds missing macOS widgets in-place without ever deleting user-added widgets or configs
+# ponytail: non-destructive multi-screen sync — never calls p.remove() on panels with lastScreen < 0 so KDE never deletes secondary screen panels during monitor wake/re-enumeration
 
 JS_SCRIPT=$(cat << 'EOJS'
 var n = screenCount;
@@ -7,29 +7,30 @@ var allPanels = panels();
 
 var topByScreen = {};
 var bottomByScreen = {};
+var homelessTop = [];
+var homelessBot = [];
 
 for (var i = 0; i < allPanels.length; i++) {
     var p = allPanels[i];
-    if (p.screen < 0 || p.screen >= n) {
-        p.remove();
-        continue;
-    }
     if (p.location === "top") {
-        if (topByScreen[p.screen]) {
-            p.remove();
+        if (p.screen >= 0 && p.screen < n) {
+            if (!topByScreen[p.screen]) {
+                topByScreen[p.screen] = p;
+            }
         } else {
-            topByScreen[p.screen] = p;
+            homelessTop.push(p);
         }
     } else if (p.location === "bottom") {
-        if (bottomByScreen[p.screen]) {
-            p.remove();
+        if (p.screen >= 0 && p.screen < n) {
+            if (!bottomByScreen[p.screen]) {
+                bottomByScreen[p.screen] = p;
+            }
         } else {
-            bottomByScreen[p.screen] = p;
+            homelessBot.push(p);
         }
     }
 }
 
-// Copy any user-customized widget config from Screen 0's panel when provisioning a secondary screen
 function copyConfigFromPrimary(primaryPanel, widgetType, targetWidget, groups) {
     if (!primaryPanel || primaryPanel === targetWidget.parent) return false;
     var pw = primaryPanel.widgets();
@@ -62,7 +63,6 @@ function ensureTopBar(panel, primaryTop) {
 
     var existing = panel.widgets().map(function(w) { return w.type; });
 
-    // Only populate if this is a brand-new / empty panel; NEVER wipe existing widgets!
     if (existing.length === 0) {
         var kickoff = panel.addWidget("org.kde.plasma.kickoff");
         kickoff.currentConfigGroup = ["General"];
@@ -138,14 +138,6 @@ function ensureTopBar(panel, primaryTop) {
         var island = panel.addWidget("org.phobby.dynamicisland");
         if (!copyConfigFromPrimary(primaryTop, "org.phobby.dynamicisland", island, ["General"])) {
             island.currentConfigGroup = ["General"];
-            island.writeConfig("calendarSources", JSON.stringify([{
-                id: "mvsfhu6pf7j5",
-                type: "google",
-                url: "",
-                name: "Calendar",
-                color: "#32d74b",
-                enabled: true
-            }]));
             island.writeConfig("weatherLocation", JSON.stringify({
                 name: "New Delhi",
                 admin: "National Capital Territory of Delhi",
@@ -157,7 +149,10 @@ function ensureTopBar(panel, primaryTop) {
             island.writeConfig("catSide", 2);
             island.writeConfig("catSize", 180);
             island.writeConfig("tourShown", true);
+            island.writeConfig("ambientGlow", true);
         }
+
+        panel.addWidget("org.macos.privacydots");
     } else {
         if (existing.indexOf("org.phobby.dynamicisland") === -1) {
             var islandAdd = panel.addWidget("org.phobby.dynamicisland");
@@ -179,7 +174,6 @@ function ensureBottomDock(panel, primaryBot) {
 
     var existing = panel.widgets().map(function(w) { return w.type; });
 
-    // Only populate if empty; otherwise add any missing dock widget non-destructively!
     if (existing.length === 0) {
         var tasks = panel.addWidget("org.kde.plasma.icontasks");
         if (!copyConfigFromPrimary(primaryBot, "org.kde.plasma.icontasks", tasks, ["General"])) {
@@ -220,17 +214,17 @@ var primaryTop = topByScreen[0] || null;
 var primaryBot = bottomByScreen[0] || null;
 
 for (var s = 0; s < n; s++) {
-    var topP = topByScreen[s] || new Panel();
+    var topP = topByScreen[s] || homelessTop.shift() || new Panel();
     topP.screen = s;
     ensureTopBar(topP, primaryTop);
     if (s === 0) primaryTop = topP;
-    out.push("TOP:" + topP.id);
+    out.push("TOP:" + topP.id + ":" + s);
 
-    var botP = bottomByScreen[s] || new Panel();
+    var botP = bottomByScreen[s] || homelessBot.shift() || new Panel();
     botP.screen = s;
     ensureBottomDock(botP, primaryBot);
     if (s === 0) primaryBot = botP;
-    out.push("BOT:" + botP.id);
+    out.push("BOT:" + botP.id + ":" + s);
 }
 
 var desk = desktops();
@@ -250,8 +244,8 @@ EOJS
 
 PANEL_IDS=$(qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$JS_SCRIPT")
 for item in $PANEL_IDS; do
-    kind="${item%%:*}"
-    pid="${item#*:}"
+    IFS=":" read -r kind pid scr <<< "$item"
+    kwriteconfig6 --file ~/.config/plasma-org.kde.plasma.desktop-appletsrc --group "Containments" --group "$pid" --key "lastScreen" "$scr"
     if [ "$kind" = "TOP" ]; then
         kwriteconfig6 --file plasmashellrc --group "PlasmaViews" --group "Panel $pid" --key panelVisibility 0
         kwriteconfig6 --file plasmashellrc --group "PlasmaViews" --group "Panel $pid" --key floating 0
