@@ -830,6 +830,7 @@ PlasmoidItem {
     }
 
     property string shelfItemsJson: "[]"
+    property int shelfReloadRev: 1
     Component {
         id: shelfPage
         Loader {
@@ -837,7 +838,7 @@ PlasmoidItem {
             readonly property bool holdOpen: item !== null && item.holdOpen
             readonly property bool asking: item !== null && item.asking === true
             readonly property bool tall: item !== null && item.tall
-            Component.onCompleted: setSource("ShelfPage.qml", { theme: root.islandTheme, core: root.core, savedShelf: root.shelfItemsJson })
+            Component.onCompleted: setSource("ShelfPage.qml?v=" + root.shelfReloadRev, { theme: root.islandTheme, core: root.core, savedShelf: root.shelfItemsJson })
             Connections {
                 target: item
                 function onShelfEdited(json) { root.shelfItemsJson = json; }

@@ -369,7 +369,7 @@ Item {
             Text {
                 text: "Active Localhost Dev Ports (" + page.activePorts.length + ")"
                 color: page.theme.subText
-                font.pointSize: page.theme.fontTiny
+                font.pointSize: page.theme.fontSmall
                 font.weight: Font.DemiBold
             }
 
@@ -431,7 +431,7 @@ Item {
                 Layout.fillWidth: true
                 text: "Dropover File Shelf (" + page.items.length + ")"
                 color: page.theme.subText
-                font.pointSize: page.theme.fontTiny
+                font.pointSize: page.theme.fontSmall
                 font.weight: Font.DemiBold
             }
             PillButton {
