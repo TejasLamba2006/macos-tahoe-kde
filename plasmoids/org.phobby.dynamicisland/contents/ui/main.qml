@@ -830,7 +830,7 @@ PlasmoidItem {
     }
 
     property string shelfItemsJson: "[]"
-    property int shelfReloadRev: 2
+    property int shelfReloadRev: 3
     Component {
         id: shelfPage
         Loader {

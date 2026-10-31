@@ -37,6 +37,11 @@ Item {
     property string callName: ""
     property var dragger: null
     property bool camRunning: false
+    property bool meetingRecording: false
+    property string meetingTitle: "Meeting Notes"
+    property var meetingCalendarEvent: null
+    property var meetingPreview: []
+    property string meetingLastNote: ""
 
     Component.onCompleted: {
         loadShelf();
@@ -91,10 +96,21 @@ Item {
                     page.callState = String(data.callState || "");
                     page.callNumber = String(data.callNumber || "");
                     page.callName = String(data.callName || "");
+                    page.meetingRecording = Boolean(data.meetingRecording);
+                    page.meetingTitle = String(data.meetingTitle || "Meeting Notes");
+                    page.meetingCalendarEvent = data.meetingCalendarEvent || null;
+                    page.meetingPreview = Array.isArray(data.meetingPreview) ? data.meetingPreview : [];
+                    page.meetingLastNote = String(data.meetingLastNote || "");
                 } catch (e) {}
             }
         };
         xhr.send();
+    }
+
+    function toggleMeetingNotes(): void {
+        if (!core) return;
+        core.startDetached("@HOME@/.local/bin/macos-meeting-notes.py", [meetingRecording ? "stop" : "start"]);
+        meetingRecording = !meetingRecording;
     }
 
     function toggleAudioRoute(): void {
@@ -288,6 +304,52 @@ Item {
                     text: "Front"
                     visible: !page.camRunning
                     onClicked: page.toggleContinuityCamera("front")
+                }
+            }
+        }
+
+        // Granola Calendar-Linked Meeting Notepad Bar (Mic + System Audio -> Hinglish GPU + Summary)
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 34
+            radius: 10
+            color: page.meetingRecording ? Qt.rgba(0.20, 0.78, 0.35, 0.22) : page.theme.faint
+            border.width: 1
+            border.color: page.meetingRecording ? page.theme.live : "transparent"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 8
+                spacing: 8
+
+                Kirigami.Icon {
+                    source: "view-pim-notes"
+                    Layout.preferredWidth: 16
+                    Layout.preferredHeight: 16
+                    color: page.meetingRecording ? page.theme.live : page.theme.blue
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: page.meetingRecording
+                          ? ("Recording: " + page.meetingTitle + " (Mic + Meet)")
+                          : (page.meetingCalendarEvent ? ("Granola: " + page.meetingCalendarEvent.title + " (" + page.meetingCalendarEvent.start + ")") : "Granola Meeting Notes (Hinglish + Calendar)")
+                    color: page.theme.text
+                    font.pointSize: page.theme.fontSmall
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                PillButton {
+                    visible: !page.meetingRecording && page.meetingLastNote !== ""
+                    theme: page.theme
+                    text: "Last Note"
+                    onClicked: Qt.openUrlExternally("file://" + page.meetingLastNote)
+                }
+                PillButton {
+                    theme: page.theme
+                    text: page.meetingRecording ? "Stop & Summarize" : "Record Notes"
+                    primary: page.meetingRecording
+                    onClicked: page.toggleMeetingNotes()
                 }
             }
         }

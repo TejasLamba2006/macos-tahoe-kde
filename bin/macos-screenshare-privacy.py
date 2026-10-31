@@ -276,6 +276,16 @@ def poll_ports_and_handoff(bus):
         if found_url != LAST_HANDOFF_URL:
             LAST_HANDOFF_URL = found_url
 
+    # Merge Granola Meeting Notes & Calendar state
+    meeting_state = {}
+    meeting_state_path = f"/run/user/{os.getuid()}/macos-meeting-state.json"
+    if os.path.exists(meeting_state_path):
+        try:
+            with open(meeting_state_path, "r") as mf:
+                meeting_state = json.load(mf)
+        except Exception:
+            meeting_state = {}
+
     payload = {
         "ports": ports,
         "handoffConnected": bool(handoff_state.get("connected", False)),
@@ -290,7 +300,12 @@ def poll_ports_and_handoff(bus):
         "contacts": handoff_state.get("contacts", []),
         "handoffUrl": handoff_state.get("handoffUrl") or LAST_HANDOFF_URL,
         "handoffPreview": handoff_state.get("handoffPreview") or (clip_text[:120] if clip_text else ""),
-        "handoffImage": handoff_state.get("handoffImage", "")
+        "handoffImage": handoff_state.get("handoffImage", ""),
+        "meetingRecording": bool(meeting_state.get("recording", False)),
+        "meetingTitle": meeting_state.get("title", "Meeting Notes"),
+        "meetingCalendarEvent": meeting_state.get("calendarEvent"),
+        "meetingPreview": meeting_state.get("transcriptPreview", []),
+        "meetingLastNote": meeting_state.get("lastNotePath", "")
     }
     try:
         tmp = PORTS_PATH + ".tmp"
