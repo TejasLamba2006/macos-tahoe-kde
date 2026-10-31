@@ -137,6 +137,8 @@ Item {
     function flash(ev: var): void {
         ev.kind = ev.kind || "event";
         if (!warm && ev.kind === "event") return;
+        // Never queue or show transient flash events triggered while the Island is already open/expanded
+        if (holdEvents && ev.kind === "event" && !critical(ev)) return;
         if (ev.live && !eventsAllowed && !ev.force) return;
         ev.queuedAt = Date.now();
         // Coalesce repeated events of the same key (e.g. volume ticks).
@@ -206,6 +208,11 @@ Item {
         dismissEvent();
     }
 
+    onHoldEventsChanged: {
+        if (holdEvents) {
+            queue = queue.filter(q => critical(q) || q.kind === "notification");
+        }
+    }
     onEventsAllowedChanged: if (eventsAllowed && !currentEvent) gapTimer.restart()
 
     Timer {
