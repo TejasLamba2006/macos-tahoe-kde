@@ -64,11 +64,14 @@ WallpaperItem {
     }
 
     function playSource(source) {
+        const prev = root.activePlayer === 0 ? playerA : playerB;
         const inactive = root.activePlayer === 0 ? playerB : playerA;
         inactive.source = source;
         inactive.play();
         root.activePlayer = root.activePlayer === 0 ? 1 : 0;
         root.loading = false;
+        prev.stop();
+        prev.source = "";
     }
 
     function startCurrent() {
