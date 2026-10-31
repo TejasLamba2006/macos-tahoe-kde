@@ -195,7 +195,10 @@ def handle_smart_media_ducking(bus, mic_apps, call_active=False):
     global PAUSED_BY_DUCKING
     should_duck = bool(mic_apps or call_active)
     try:
-        names = [str(n) for n in bus.list_names() if str(n).startswith("org.mpris.MediaPlayer2.")]
+        names = [
+            str(n) for n in bus.list_names()
+            if str(n).startswith("org.mpris.MediaPlayer2.") and "kdeconnect" not in str(n).lower()
+        ]
     except Exception:
         names = []
 
@@ -314,7 +317,9 @@ def poll_privacy_status():
             node_name = str(props.get("node.name", ""))
             app_name = props.get("application.name") or props.get("node.description") or node_name
 
-            if node_name.startswith(("easyeffects", "output.easyeffects", "input.easyeffects")):
+            if node_name.startswith(("easyeffects", "output.easyeffects", "input.easyeffects", "dynamic-island")):
+                continue
+            if props.get("stream.capture.sink") == "true" or "Dynamic Island" in str(app_name):
                 continue
 
             if mc == "Stream/Input/Audio":
