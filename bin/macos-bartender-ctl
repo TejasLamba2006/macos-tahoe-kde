@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# ponytail: macOS Bartender Menu Bar Auto-Collapse — hides background tray icons behind chevron ‹ or expands them
+set -euo pipefail
+
+STATE_FILE="$HOME/.config/macos-bartender-mode"
+
+apply_mode() {
+    local mode="$1"
+    echo "$mode" > "$STATE_FILE"
+    if [[ "$mode" == "clean" ]]; then
+        qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
+        var all = panels();
+        for (var i = 0; i < all.length; i++) {
+            if (all[i].location === "top") {
+                var w = all[i].widgets();
+                for (var j = 0; j < w.length; j++) {
+                    if (w[j].type === "org.kde.plasma.systemtray") {
+                        w[j].currentConfigGroup = ["General"];
+                        w[j].writeConfig("hiddenItems", [
+                            "org.kde.plasma.notifications",
+                            "org.kde.plasma.clipboard",
+                            "org.kde.plasma.volume",
+                            "org.kde.plasma.brightness",
+                            "org.kde.plasma.battery",
+                            "org.kde.plasma.bluetooth",
+                            "org.kde.plasma.devicenotifier",
+                            "org.kde.kdeconnect",
+                            "org.kde.plasma.mediacontroller",
+                            "org.kde.kscreen",
+                            "org.kde.plasma.keyboardlayout",
+                            "org.kde.plasma.keyboardindicator",
+                            "Yakuake",
+                            "vicinae",
+                            "Easy Effects",
+                            "uKzAWcJM_C",
+                            "spotify-client",
+                            "discord_status_icon_1",
+                            "Cachy-Update",
+                            "open-whispr_status_icon_1",
+                            "plasmashell_microphone",
+                            "org.kde.merkuro.contact.applet",
+                            "org.kde.plasma.cameraindicator",
+                            "org.kde.plasma.manage-inputmethod",
+                            "org.kde.plasma.weather",
+                            "org.kde.plasma.dwellclicker"
+                        ]);
+                        w[j].writeConfig("shownItems", [
+                            "org.kde.plasma.networkmanagement"
+                        ]);
+                    }
+                }
+            }
+        }
+        ' >/dev/null 2>&1 || true
+        ~/.local/bin/island-push --flash --title "Bartender: Clean Menu Bar" --subtitle "Background tray icons tucked behind ‹ chevron" --icon view-visible-symbolic --color blue --duration 2200 2>/dev/null || true
+    else
+        qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
+        var all = panels();
+        for (var i = 0; i < all.length; i++) {
+            if (all[i].location === "top") {
+                var w = all[i].widgets();
+                for (var j = 0; j < w.length; j++) {
+                    if (w[j].type === "org.kde.plasma.systemtray") {
+                        w[j].currentConfigGroup = ["General"];
+                        w[j].writeConfig("hiddenItems", [
+                            "org.kde.plasma.notifications",
+                            "org.kde.plasma.clipboard",
+                            "org.kde.plasma.volume",
+                            "org.kde.plasma.brightness",
+                            "org.kde.plasma.battery",
+                            "org.kde.plasma.bluetooth",
+                            "org.kde.plasma.devicenotifier",
+                            "org.kde.kdeconnect",
+                            "org.kde.plasma.mediacontroller",
+                            "org.kde.kscreen",
+                            "org.kde.plasma.keyboardlayout",
+                            "org.kde.plasma.keyboardindicator"
+                        ]);
+                        w[j].writeConfig("shownItems", [
+                            "org.kde.plasma.networkmanagement",
+                            "discord_status_icon_1",
+                            "open-whispr_status_icon_1",
+                            "uKzAWcJM_C"
+                        ]);
+                    }
+                }
+            }
+        }
+        ' >/dev/null 2>&1 || true
+        ~/.local/bin/island-push --flash --title "Bartender: Expanded Menu Bar" --subtitle "All app tray icons visible in menu bar" --icon view-visible-symbolic --color green --duration 2200 2>/dev/null || true
+    fi
+}
+
+cur="clean"
+[[ -f "$STATE_FILE" ]] && cur=$(cat "$STATE_FILE" 2>/dev/null || echo "clean")
+
+case "${1:-toggle}" in
+    clean) apply_mode "clean" ;;
+    expand|expanded) apply_mode "expanded" ;;
+    toggle)
+        if [[ "$cur" == "clean" ]]; then apply_mode "expanded"; else apply_mode "clean"; fi
+        ;;
+    status) echo "$cur" ;;
+esac

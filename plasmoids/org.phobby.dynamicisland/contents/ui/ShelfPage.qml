@@ -42,6 +42,10 @@ Item {
     property var meetingCalendarEvent: null
     property var meetingPreview: []
     property string meetingLastNote: ""
+    property var gcalMeet: null
+    property bool batteryLimit80: true
+    property bool bartenderClean: true
+    property bool keycastrRunning: false
 
     Component.onCompleted: {
         loadShelf();
@@ -101,10 +105,32 @@ Item {
                     page.meetingCalendarEvent = data.meetingCalendarEvent || null;
                     page.meetingPreview = Array.isArray(data.meetingPreview) ? data.meetingPreview : [];
                     page.meetingLastNote = String(data.meetingLastNote || "");
+                    page.gcalMeet = data.gcalMeet || null;
+                    page.batteryLimit80 = Boolean(data.batteryLimit80);
+                    page.bartenderClean = Boolean(data.bartenderClean);
+                    page.keycastrRunning = Boolean(data.keycastrRunning);
                 } catch (e) {}
             }
         };
         xhr.send();
+    }
+
+    function toggleBatteryLimit(): void {
+        if (!core) return;
+        batteryLimit80 = !batteryLimit80;
+        core.startDetached("@HOME@/.local/bin/macos-battery-limit", [batteryLimit80 ? "on" : "off"]);
+    }
+
+    function toggleBartender(): void {
+        if (!core) return;
+        bartenderClean = !bartenderClean;
+        core.startDetached("@HOME@/.local/bin/macos-bartender-ctl", [bartenderClean ? "clean" : "expand"]);
+    }
+
+    function toggleKeycastr(): void {
+        if (!core) return;
+        keycastrRunning = !keycastrRunning;
+        core.startDetached("@HOME@/.local/bin/macos-keycastr.py", [keycastrRunning ? "start" : "stop"]);
     }
 
     function toggleMeetingNotes(): void {
@@ -333,11 +359,18 @@ Item {
                     Layout.fillWidth: true
                     text: page.meetingRecording
                           ? ("Recording: " + page.meetingTitle + " (Mic + Meet)")
-                          : (page.meetingCalendarEvent ? ("Granola: " + page.meetingCalendarEvent.title + " (" + page.meetingCalendarEvent.start + ")") : "Granola Meeting Notes (Hinglish + Calendar)")
+                          : (page.gcalMeet && page.gcalMeet.title ? ("Meet: " + page.gcalMeet.title) : (page.meetingCalendarEvent ? ("Granola: " + page.meetingCalendarEvent.title + " (" + page.meetingCalendarEvent.start + ")") : "Granola Meeting Notes (Hinglish + Calendar)"))
                     color: page.theme.text
                     font.pointSize: page.theme.fontSmall
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
+                }
+                PillButton {
+                    visible: page.gcalMeet !== null && page.gcalMeet.url !== ""
+                    theme: page.theme
+                    text: "Join Meet"
+                    primary: true
+                    onClicked: Qt.openUrlExternally(page.gcalMeet.url)
                 }
                 PillButton {
                     visible: !page.meetingRecording && page.meetingLastNote !== ""
@@ -350,6 +383,45 @@ Item {
                     text: page.meetingRecording ? "Stop & Summarize" : "Record Notes"
                     primary: page.meetingRecording
                     onClicked: page.toggleMeetingNotes()
+                }
+            }
+        }
+
+        // macOS Utilities Bar (#21 Bartender, #22 Keycastr HUD, #23 AlDente 80% Charge Limit)
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 34
+            radius: 10
+            color: page.theme.faint
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                spacing: 6
+
+                PillButton {
+                    Layout.fillWidth: true
+                    theme: page.theme
+                    text: page.batteryLimit80 ? "AlDente: 80% Cap" : "Battery: 100%"
+                    primary: page.batteryLimit80
+                    onClicked: page.toggleBatteryLimit()
+                }
+
+                PillButton {
+                    Layout.fillWidth: true
+                    theme: page.theme
+                    text: page.bartenderClean ? "Menu: Clean" : "Menu: All Icons"
+                    primary: page.bartenderClean
+                    onClicked: page.toggleBartender()
+                }
+
+                PillButton {
+                    Layout.fillWidth: true
+                    theme: page.theme
+                    text: page.keycastrRunning ? "Keycastr: ON" : "Keycastr: OFF"
+                    primary: page.keycastrRunning
+                    onClicked: page.toggleKeycastr()
                 }
             }
         }

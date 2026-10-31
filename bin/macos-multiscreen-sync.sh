@@ -189,7 +189,21 @@ function ensureTopBar(panel, primaryTop) {
                     "org.kde.plasma.mediacontroller",
                     "org.kde.kscreen",
                     "org.kde.plasma.keyboardlayout",
-                    "org.kde.plasma.keyboardindicator"
+                    "org.kde.plasma.keyboardindicator",
+                    "Yakuake",
+                    "vicinae",
+                    "Easy Effects",
+                    "uKzAWcJM_C",
+                    "spotify-client",
+                    "discord_status_icon_1",
+                    "Cachy-Update",
+                    "open-whispr_status_icon_1",
+                    "plasmashell_microphone",
+                    "org.kde.merkuro.contact.applet",
+                    "org.kde.plasma.cameraindicator",
+                    "org.kde.plasma.manage-inputmethod",
+                    "org.kde.plasma.weather",
+                    "org.kde.plasma.dwellclicker"
                 ]);
                 pw[wi].writeConfig("shownItems", [
                     "org.kde.plasma.networkmanagement"

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# ponytail: macOS AlDente Battery Conservation Limiter (80% Charge Cap via UPower / Lenovo Legion ACPI)
+set -euo pipefail
+
+UPOWER_DEV="/org/freedesktop/UPower/devices/battery_BAT1"
+
+is_enabled() {
+    local val
+    val=$(busctl --system get-property org.freedesktop.UPower "$UPOWER_DEV" org.freedesktop.UPower.Device ChargeThresholdEnabled 2>/dev/null | awk '{print $2}' || echo "false")
+    [[ "$val" == "true" ]]
+}
+
+set_mode() {
+    local target="${1:-toggle}"
+    local enable="true"
+    if [[ "$target" == "toggle" ]]; then
+        if is_enabled; then enable="false"; else enable="true"; fi
+    elif [[ "$target" == "off" || "$target" == "false" || "$target" == "100" ]]; then
+        enable="false"
+    fi
+
+    busctl --system call org.freedesktop.UPower "$UPOWER_DEV" org.freedesktop.UPower.Device EnableChargeThreshold b "$enable" >/dev/null 2>&1 || true
+
+    if [[ "$enable" == "true" ]]; then
+        ~/.local/bin/island-push --flash --title "AlDente: 80% Charge Limit ON" --subtitle "Battery Conservation Mode active (Long Life)" --icon battery-good-charging-symbolic --color green --duration 3000 2>/dev/null || true
+        echo "enabled"
+    else
+        ~/.local/bin/island-push --flash --title "AlDente: 100% Full Charge Mode" --subtitle "Battery will charge to 100%" --icon battery-full-charging-symbolic --color orange --duration 3000 2>/dev/null || true
+        echo "disabled"
+    fi
+}
+
+case "${1:-status}" in
+    on|enable|80) set_mode "on" ;;
+    off|disable|100) set_mode "off" ;;
+    toggle) set_mode "toggle" ;;
+    status)
+        if is_enabled; then echo "enabled"; else echo "disabled"; fi
+        ;;
+esac
