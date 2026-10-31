@@ -97,12 +97,14 @@ ensure_bt_hfp() {
         echo "$ag"
         return 0
     fi
-    rfkill unblock bluetooth 2>/dev/null || true
-    bluetoothctl power on >/dev/null 2>&1 || true
+    # Respect user Bluetooth power state — never force Bluetooth on if turned off
+    if ! bluetoothctl show 2>/dev/null | grep -q "Powered: yes"; then
+        return 1
+    fi
     local mac
     mac=$(bluetoothctl devices Paired 2>/dev/null | awk '{print $2; exit}' || true)
     if [[ -n "$mac" ]]; then
-        bluetoothctl connect "$mac" 0000111f-0000-1000-8000-00805f9b34fb >/dev/null 2>&1 || bluetoothctl connect "$mac" >/dev/null 2>&1 || true
+        bluetoothctl connect "$mac" 0000111f-0000-1000-8000-00805f9b34fb >/dev/null 2>&1 || true
         sleep 1
     fi
     find_ag_path

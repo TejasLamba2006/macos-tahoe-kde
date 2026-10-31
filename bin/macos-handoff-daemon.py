@@ -191,14 +191,6 @@ class HandoffBridge:
         except Exception:
             self.hfp_connected = False
 
-        if not self.hfp_connected and getattr(self, "_bt_tick", 0) % 15 == 0:
-            subprocess.Popen(
-                [os.path.expanduser("~/.local/bin/macos-phone-ctl"), "connect-audio"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        self._bt_tick = getattr(self, "_bt_tick", 0) + 1
-
     def scan_download_images(self):
         dl = os.path.expanduser("~/Downloads")
         if not os.path.isdir(dl):
