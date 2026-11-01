@@ -193,7 +193,9 @@ def cdp_eval_value(ws_url, expression):
 
 def handle_smart_media_ducking(bus, mic_apps, call_active=False):
     global PAUSED_BY_DUCKING
-    should_duck = bool(mic_apps or call_active)
+    # Only pause desktop music during an actual cellular Phone Call (or voice dictation), NEVER because Discord / WebRTC / Meet has a mic stream open!
+    dictation_active = any("open-whispr" in str(a).lower() or "whisper" in str(a).lower() for a in (mic_apps or []))
+    should_duck = bool(call_active or dictation_active)
     try:
         names = [
             str(n) for n in bus.list_names()

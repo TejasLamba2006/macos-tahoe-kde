@@ -179,15 +179,41 @@ class HandoffBridge:
                             )
                         break
 
-            if not active_call_found and self.call_state:
-                self.call_state = ""
-                self.call_number = ""
-                self.call_name = ""
-                subprocess.Popen(
-                    [os.path.expanduser("~/.local/bin/island-push"), "--id", "phone-call", "--done", "--status", "cancel"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+            if not active_call_found and self.serial:
+                try:
+                    t_out = subprocess.check_output(
+                        ["adb", "-s", self.serial, "shell", "dumpsys telephony.registry | grep -E 'mCallState='"],
+                        text=True, stderr=subprocess.DEVNULL, timeout=1.2
+                    )
+                    if "mCallState=1" in t_out:
+                        active_call_found = True
+                        self.call_state = "incoming"
+                    elif "mCallState=2" in t_out:
+                        active_call_found = True
+                        if not self.call_state:
+                            self.call_state = "active"
+                except Exception:
+                    pass
+
+            if not active_call_found:
+                if self.call_state:
+                    self.call_state = ""
+                    self.call_number = ""
+                    self.call_name = ""
+                # Also clear any externally pushed phone-call activity in Dynamic Island when phone is idle
+                try:
+                    act_out = subprocess.check_output(
+                        [os.path.expanduser("~/.local/bin/island-push"), "--list"],
+                        text=True, stderr=subprocess.DEVNULL, timeout=1.0
+                    )
+                    if "phone-call" in act_out.splitlines():
+                        subprocess.Popen(
+                            [os.path.expanduser("~/.local/bin/island-push"), "--id", "phone-call", "--done", "--status", "cancel"],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                except Exception:
+                    pass
         except Exception:
             self.hfp_connected = False
 
