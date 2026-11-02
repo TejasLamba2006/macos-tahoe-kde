@@ -1,0 +1,13 @@
+# ponytail: automatically clear NTFS dirty bit before mounting Windows-SSD so Windows Fast Startup / unclean shutdown never blocks mount
+[Unit]
+Description=Auto-clear NTFS dirty flag on Windows-SSD before mount
+DefaultDependencies=no
+After=blockdev@dev-disk-by\x2duuid-7ABE755ABE75103D.target
+Before=run-media-@USER@-Windows\x2dSSD.mount
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/bin/ntfsfix -d /dev/disk/by-uuid/7ABE755ABE75103D
+
+[Install]
+WantedBy=run-media-@USER@-Windows\x2dSSD.mount
