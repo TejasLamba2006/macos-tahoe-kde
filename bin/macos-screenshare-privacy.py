@@ -514,71 +514,21 @@ def poll_ports_and_handoff(bus):
         pass
 
 def set_desktop_icons_visible(visible):
-    if not visible:
-        # Only overwrite backup if desktop is currently showing real desktop:/ icons (not empty-desktop)
-        js_read = """
-        var out = {};
-        var d = desktops();
-        for (var i = 0; i < d.length; i++) {
-            d[i].currentConfigGroup = ["General"];
-            var u = d[i].readConfig("url");
-            var pos = d[i].readConfig("positions");
-            if ((!u || u === "desktop:/") && pos && pos.length > 25) {
-                out[d[i].id] = pos;
-            }
-        }
-        print(JSON.stringify(out));
-        """
-        try:
-            res = subprocess.check_output(
-                ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_read],
-                text=True,
-                stderr=subprocess.DEVNULL,
-            ).strip()
-            if res and res != "{}":
-                with open(POS_BACKUP_PATH, "w") as f:
-                    f.write(res)
-        except Exception:
-            pass
-
-        js_hide = """
-        var d = desktops();
-        for (var i = 0; i < d.length; i++) {
-            d[i].currentConfigGroup = ["General"];
-            d[i].writeConfig("url", "file:///tmp/empty-desktop");
-        }
-        """
-        subprocess.run(
-            ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_hide],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    else:
-        # Restore desktop:/ URL and immediately restore backed-up icon positions
-        saved = {}
-        if os.path.exists(POS_BACKUP_PATH):
-            try:
-                with open(POS_BACKUP_PATH, "r") as f:
-                    saved = json.load(f)
-            except Exception:
-                saved = {}
-        saved_json = json.dumps(saved)
-        js_restore = f"""
-        var saved = {saved_json};
-        var d = desktops();
-        for (var i = 0; i < d.length; i++) {{
-            d[i].currentConfigGroup = ["General"];
-            d[i].writeConfig("url", "desktop:/");
-            if (saved[d[i].id]) {{
-                d[i].writeConfig("positions", saved[d[i].id]);
-            }}
-        }}
-        """
-        subprocess.run(
-            ["qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", js_restore],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    rc = os.path.expanduser("~/.config/plasma-org.kde.plasma.desktop-appletsrc")
+    if not os.path.exists(rc):
+        return
+    try:
+        text = open(rc, "r", encoding="utf-8", errors="ignore").read()
+        if not visible:
+            if "url=file:///tmp/empty-desktop" not in text:
+                text = text.replace("url=desktop:/", "url=file:///tmp/empty-desktop")
+                open(rc, "w", encoding="utf-8").write(text)
+        else:
+            if "url=file:///tmp/empty-desktop" in text:
+                text = text.replace("url=file:///tmp/empty-desktop", "url=desktop:/")
+                open(rc, "w", encoding="utf-8").write(text)
+    except Exception:
+        pass
 
 def main():
     bus = dbus.SessionBus()

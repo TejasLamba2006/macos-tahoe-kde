@@ -41,10 +41,8 @@ if m_dis and m_dis.group(1).strip():
 
 needs_panel_sync() {
     python3 -I -c '
-import os, re, subprocess, sys
-out = subprocess.check_output(["kscreen-doctor", "-o"], text=True, stderr=subprocess.DEVNULL)
-out = re.sub(r"\x1b\[[0-9;]*m", "", out)
-screens = out.count("enabled")
+import glob, os, re, sys
+screens = sum(1 for p in glob.glob("/sys/class/drm/card*-*/status") if open(p).read().strip() == "connected")
 if screens < 1:
     sys.exit(1)
 
@@ -53,7 +51,6 @@ if not os.path.exists(rc):
     sys.exit(0)
 
 text = open(rc, errors="ignore").read()
-# Count top (location=3) and bottom (location=4) panels per screen
 tops = set()
 bots = set()
 for block in re.split(r"\n(?=\[Containments\]\[\d+\]\n)", text):
@@ -77,7 +74,9 @@ sys.exit(1)
 
 wait_for_plasma && {
     heal_desktop_icons
-    ~/.local/bin/macos-multiscreen-sync.sh
+    if needs_panel_sync; then
+        ~/.local/bin/macos-multiscreen-sync.sh
+    fi
 }
 
 while true; do
@@ -87,7 +86,6 @@ while true; do
         systemctl --user start plasma-plasmashell.service 2>/dev/null || true
         sleep 4
         heal_desktop_icons
-        ~/.local/bin/macos-multiscreen-sync.sh
         continue
     fi
 
