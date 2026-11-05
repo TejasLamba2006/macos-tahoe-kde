@@ -308,6 +308,14 @@ def poll_privacy_status():
     try:
         out = subprocess.check_output(["pw-dump"], text=True, stderr=subprocess.DEVNULL, timeout=1.5)
         nodes = json.loads(out)
+        has_plasmashell_preview = any(
+            isinstance(o.get("info"), dict)
+            and o["info"].get("state") == "running"
+            and isinstance(o["info"].get("props"), dict)
+            and o["info"]["props"].get("media.class") == "Stream/Input/Video"
+            and str(o["info"]["props"].get("node.name", "")).lower() == "plasmashell"
+            for o in nodes
+        )
         for obj in nodes:
             info = obj.get("info", {})
             if not isinstance(info, dict) or info.get("state") != "running":
@@ -318,6 +326,13 @@ def poll_privacy_status():
             mc = props.get("media.class", "")
             node_name = str(props.get("node.name", ""))
             app_name = props.get("application.name") or props.get("node.description") or node_name
+            media_name = str(props.get("media.name", ""))
+
+            # Dock window hover previews: plasmashell consumer + kwin producer are not screen sharing
+            if node_name.lower() == "plasmashell" or media_name.startswith("plasma-screencast-"):
+                continue
+            if node_name.lower() == "kwin_wayland" and has_plasmashell_preview:
+                continue
 
             if node_name.startswith(("easyeffects", "output.easyeffects", "input.easyeffects", "dynamic-island")):
                 continue

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Keep NVIDIA dGPU (0000:01:00.0) and its HDMI audio fn (0000:01:00.1) awake
+# while any external HDMI connector is connected; allow runtime PM otherwise.
+want=auto
+for s in /sys/class/drm/card*-HDMI-A-*/status; do
+    [ -r "$s" ] && [ "$(cat "$s")" = connected ] && want=on && break
+done
+for d in 0000:01:00.0 0000:01:00.1; do
+    f=/sys/bus/pci/devices/$d/power/control
+    [ -w "$f" ] && echo "$want" > "$f"
+done

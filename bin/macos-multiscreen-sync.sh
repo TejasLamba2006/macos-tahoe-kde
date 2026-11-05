@@ -42,13 +42,6 @@ for idx, conn in enumerate(connected):
         subprocess.run(["kwriteconfig6", "--file", rc_path, "--group", "ScreenConnectors", "--key", k, conn])
         changed = True
 
-app_rc = os.path.expanduser("~/.config/plasma-org.kde.plasma.desktop-appletsrc")
-if os.path.exists(app_rc):
-    app_txt = open(app_rc, "r", encoding="utf-8", errors="ignore").read()
-    if "url=file:///tmp/empty-desktop" in app_txt:
-        open(app_rc, "w", encoding="utf-8").write(app_txt.replace("url=file:///tmp/empty-desktop", "url=desktop:/"))
-        changed = True
-
 sys.exit(0 if changed else 1)
 '
 }
@@ -139,6 +132,23 @@ for (var d = 0; d < desk.length; d++) {
 
 LIVE_TOPO=$(get_live_topology)
 PREV_TOPO=$(cat "$STATE_FILE" 2>/dev/null || true)
+PENDING_FILE="/tmp/macos-drm-disconnect-pending"
+
+count_of() {
+    if [ -z "$1" ]; then echo 0; else echo "$1" | tr ',' '\n' | wc -l; fi
+}
+LIVE_N=$(count_of "$LIVE_TOPO")
+PREV_N=$(count_of "$PREV_TOPO")
+
+# ponytail: 2-tick debounce for disconnects only (HDMI HPD blips); connects apply immediately. Ceiling: 4s window from timer interval.
+if [ "$LIVE_N" -lt "$PREV_N" ] && [ "$LIVE_TOPO" != "$PREV_TOPO" ]; then
+    if [ ! -f "$PENDING_FILE" ]; then
+        touch "$PENDING_FILE"
+        echo "Disconnect seen ($LIVE_TOPO); pending confirmation next tick."
+        exit 0
+    fi
+fi
+rm -f "$PENDING_FILE"
 
 if sync_screen_connectors; then
     echo "ScreenConnectors updated dynamically ($LIVE_TOPO); restarting plasmashell..."

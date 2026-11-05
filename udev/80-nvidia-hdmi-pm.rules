@@ -1,0 +1,3 @@
+# Re-evaluate dGPU runtime PM on DRM hotplug and when the NVIDIA PCI functions appear.
+SUBSYSTEM=="drm", KERNEL=="card*", ACTION=="change", RUN+="/usr/local/sbin/nvidia-hdmi-pm"
+SUBSYSTEM=="pci", KERNEL=="0000:01:00.[01]", ACTION=="add", RUN+="/usr/local/sbin/nvidia-hdmi-pm"
