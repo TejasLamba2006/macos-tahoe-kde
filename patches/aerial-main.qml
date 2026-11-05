@@ -142,6 +142,10 @@ WallpaperItem {
             if (!obj || blacklist.indexOf(obj.entryId) !== -1) {
                 continue;
             }
+            // ponytail: skip legacy 2018 tvOS 12 low-bitrate (~4 Mbps) clips; keep crisp macOS Sonoma/Sequoia (~6.3+ Mbps) clips
+            if (obj.entryUrl1080Sdr && obj.entryUrl1080Sdr.indexOf("2018") !== -1) {
+                continue;
+            }
             const entry = {
                 id: obj.entryId,
                 accessibilityLabel: obj.entryLabel,
