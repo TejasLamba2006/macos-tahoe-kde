@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/systemtray">
+        <file alias="main.qml">systemtray/main.qml</file>
+        <file alias="ExpanderArrow.qml">systemtray/ExpanderArrow.qml</file>
+        <file alias="AbstractItem.qml">systemtray/AbstractItem.qml</file>
+        <file alias="HiddenItemsView.qml">systemtray/HiddenItemsView.qml</file>
+        <file alias="ExpandedRepresentation.qml">systemtray/ExpandedRepresentation.qml</file>
+    </qresource>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/digitalclock">
+        <file alias="main.qml">digitalclock/main.qml</file>
+        <file alias="DigitalClock.qml">digitalclock/DigitalClock.qml</file>
+        <file alias="CalendarView.qml">digitalclock/CalendarView.qml</file>
+    </qresource>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/kickoff">
+        <file alias="FullRepresentation.qml">kickoff/FullRepresentation.qml</file>
+    </qresource>
+</RCC>
