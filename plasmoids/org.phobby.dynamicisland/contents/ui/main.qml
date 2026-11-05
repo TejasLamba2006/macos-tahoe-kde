@@ -157,6 +157,7 @@ PlasmoidItem {
     Binding { target: root.calendarBackend; property: "refreshMinutes"; value: root.cfg.calendarRefreshMinutes; when: root.calendarBackend !== null }
     Connections {
         target: root.calendarBackend
+        enabled: root.calendarBackend !== null
         function onStatusJsonChanged() { root.cfg.calendarStatus = root.calendarBackend.statusJson; }
     }
     // Adding events needs the account itself (CalDAV); the links above are read-only.
@@ -187,6 +188,7 @@ PlasmoidItem {
     // Changes made in the settings dialog reach the backend too.
     Connections {
         target: root.cfg
+        enabled: root.cfg !== null
         function onNotesSourcesChanged() { if (notesBackend.sourcesJson !== root.cfg.notesSources) notesBackend.sourcesJson = root.cfg.notesSources; }
     }
     // The AI tab: quick questions to Claude Code on this computer, a local model or a service
@@ -210,11 +212,13 @@ PlasmoidItem {
     // What the island changes reaches the settings, and what the settings window changes reaches the island.
     Connections {
         target: root.aiBackend
+        enabled: root.aiBackend !== null
         function onSourcesJsonChanged() { if (root.cfg.aiSources !== root.aiBackend.sourcesJson) root.cfg.aiSources = root.aiBackend.sourcesJson; }
         function onAcknowledgedJsonChanged() { if (root.cfg.aiAcknowledged !== root.aiBackend.acknowledgedJson) root.cfg.aiAcknowledged = root.aiBackend.acknowledgedJson; }
     }
     Connections {
         target: root.cfg
+        enabled: root.cfg !== null
         function onAiSourcesChanged() { if (root.aiBackend !== null && root.aiBackend.sourcesJson !== root.cfg.aiSources) root.aiBackend.sourcesJson = root.cfg.aiSources; }
         function onAiAcknowledgedChanged() { if (root.aiBackend !== null && root.aiBackend.acknowledgedJson !== root.cfg.aiAcknowledged) root.aiBackend.acknowledgedJson = root.cfg.aiAcknowledged; }
     }
@@ -243,6 +247,7 @@ PlasmoidItem {
     readonly property var cloudBackend: cloudLoader.item
     Connections {
         target: root.cloudBackend
+        enabled: root.cloudBackend !== null
         function onAlertedJsonChanged() { if (root.cfg.cloudAlerted !== root.cloudBackend.alertedJson) root.cfg.cloudAlerted = root.cloudBackend.alertedJson; }
         function onLastTargetChanged() { if (root.cfg.cloudLastTarget !== root.cloudBackend.lastTarget) root.cfg.cloudLastTarget = root.cloudBackend.lastTarget; }
     }
@@ -300,6 +305,7 @@ PlasmoidItem {
     }
     Connections {
         target: root.cfg
+        enabled: root.cfg !== null
         function onCommandPathsChanged() { Requirements.recheck(); }
     }
     Binding { target: root.core; property: "updatesEnabled"; value: root.cfg.showUpdates; when: root.core !== null }
@@ -641,6 +647,7 @@ PlasmoidItem {
             onLoaded: item.notify = Qt.binding(() => root.cfg.aiNotify)
             Connections {
                 target: aiActivity.item
+                enabled: aiActivity.item !== null
                 function onOpened() { island.openPage("ai"); }
             }
         }
@@ -656,6 +663,7 @@ PlasmoidItem {
             Component.onCompleted: reload()
             Connections {
                 target: cloudActivity.item
+                enabled: cloudActivity.item !== null
                 function onOpened(id) { island.openPage("cloud"); }
             }
         }
@@ -813,6 +821,7 @@ PlasmoidItem {
             Component.onCompleted: setSource("AiPage.qml", { theme: root.islandTheme, ai: root.aiBackend })
             Connections {
                 target: item
+                enabled: item !== null
                 function onDefaultPicked(id) { root.cfg.aiDefault = id; }
             }
         }
@@ -841,6 +850,7 @@ PlasmoidItem {
             Component.onCompleted: setSource("ShelfPage.qml?v=" + root.shelfReloadRev, { theme: root.islandTheme, core: root.core, savedShelf: root.shelfItemsJson })
             Connections {
                 target: item
+                enabled: item !== null
                 function onShelfEdited(json) { root.shelfItemsJson = json; }
             }
         }
@@ -1015,6 +1025,7 @@ PlasmoidItem {
     // Opened otherwise while it is drawn up or in (a click on the nub, the menu, a shortcut): it comes down.
     Connections {
         target: island
+        enabled: island !== null
         function onExpandedChanged() { if (island.expanded && (peek.away || peek.shrunk)) peek.show(); }
     }
     // The oval island peeks from a window of the notch's kind (an overlay layer surface, the one kind of
@@ -1022,6 +1033,7 @@ PlasmoidItem {
     readonly property bool ovalOverlay: !root.notchWanted && root.fullscreenMode >= 2 && (peek.active || ovalReturn.running)
     Connections {
         target: peek
+        enabled: peek !== null
         function onActiveChanged() { if (!peek.active && !root.notchWanted && root.notchWindow !== null) ovalReturn.restart(); }
     }
     Timer { id: ovalReturn; interval: 420 }
@@ -1067,7 +1079,10 @@ PlasmoidItem {
                                           : theme.pillHeight) + theme.windowTopPad + theme.windowBottomPad + (root.slideRoom + root.ovalDown) / theme.scale
 
     Connections {
+
         target: island
+
+        enabled: island !== null
         function onWantsKeyboardChanged() { if (island.wantsKeyboard) (root.notchWindow !== null ? root.notchWindow : dialog).requestActivate(); }
     }
 

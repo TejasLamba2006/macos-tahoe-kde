@@ -51,7 +51,7 @@ class HandoffBridge:
         # 1. Trigger KDE Connect contacts sync if device is available
         if self.kde_dev:
             try:
-                c_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/contacts")
+                c_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/contacts", introspect=False)
                 c_iface = dbus.Interface(c_obj, "org.kde.kdeconnect.device.contacts")
                 c_iface.synchronizeRemoteWithLocal()
             except Exception:
@@ -141,7 +141,7 @@ class HandoffBridge:
 
         # 3. Check PipeWire Bluetooth HFP AudioGateway1 & active calls
         try:
-            mgr = self.bus.get_object("org.pipewire.Telephony", "/org/pipewire/Telephony")
+            mgr = self.bus.get_object("org.pipewire.Telephony", "/org/pipewire/Telephony", introspect=False)
             om = dbus.Interface(mgr, "org.freedesktop.DBus.ObjectManager")
             objs = om.GetManagedObjects()
             ag_paths = [p for p, ifs in objs.items() if "org.pipewire.Telephony.AudioGateway1" in ifs]
@@ -284,7 +284,7 @@ class HandoffBridge:
 
     def find_kdeconnect_device(self):
         try:
-            daemon = self.bus.get_object("org.kde.kdeconnect", "/modules/kdeconnect")
+            daemon = self.bus.get_object("org.kde.kdeconnect", "/modules/kdeconnect", introspect=False)
             d_iface = dbus.Interface(daemon, "org.kde.kdeconnect.daemon")
             try:
                 d_iface.forceOnNetworkChange()
@@ -342,7 +342,7 @@ class HandoffBridge:
         except Exception:
             pass
         try:
-            klipper = self.bus.get_object("org.kde.klipper", "/klipper")
+            klipper = self.bus.get_object("org.kde.klipper", "/klipper", introspect=False)
             iface = dbus.Interface(klipper, "org.kde.klipper.klipper")
             val = str(iface.getClipboardContents() or "").strip()
             if val and not val.startswith("▨ "):
@@ -353,7 +353,7 @@ class HandoffBridge:
 
     def set_desktop_text(self, text):
         try:
-            klipper = self.bus.get_object("org.kde.klipper", "/klipper")
+            klipper = self.bus.get_object("org.kde.klipper", "/klipper", introspect=False)
             iface = dbus.Interface(klipper, "org.kde.klipper.klipper")
             iface.setClipboardContents(text)
         except Exception:
@@ -399,7 +399,7 @@ class HandoffBridge:
         # Channel 1: KDE Connect clipboard plugin (instant over Wi-Fi LAN)
         if self.kde_dev:
             try:
-                clip_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/clipboard")
+                clip_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/clipboard", introspect=False)
                 clip_iface = dbus.Interface(clip_obj, "org.kde.kdeconnect.device.clipboard")
                 clip_iface.sendClipboard()
                 sent = True
@@ -434,7 +434,7 @@ class HandoffBridge:
         # Channel 1: KDE Connect shareUrl (transfers image directly to phone over LAN)
         if self.kde_dev:
             try:
-                share_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/share")
+                share_obj = self.bus.get_object("org.kde.kdeconnect", f"/modules/kdeconnect/devices/{self.kde_dev}/share", introspect=False)
                 share_iface = dbus.Interface(share_obj, "org.kde.kdeconnect.device.share")
                 share_iface.shareUrl(f"file://{local_tmp}")
                 sent = True

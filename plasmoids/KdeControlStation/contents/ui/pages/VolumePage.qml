@@ -25,8 +25,8 @@ PageTemplate {
         id: config
     }
 
-    property bool volumeFeedback: config.audioFeedback
-    property bool globalMute: config.globalMute
+    property bool volumeFeedback: Boolean(config.audioFeedback)
+    property bool globalMute: Boolean(config.globalMute)
     property string displayName: i18n("Audio Volume")
     property QtObject draggedStream: null
 

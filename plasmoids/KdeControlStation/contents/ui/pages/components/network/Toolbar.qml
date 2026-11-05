@@ -178,6 +178,7 @@ RowLayout {
 
         Connections {
             target: handler
+            ignoreUnknownSignals: true
             function onHotspotCreated() {
                 hotspotButton.checked = true
                 tooltip.text = i18n("Disable Hotspot")

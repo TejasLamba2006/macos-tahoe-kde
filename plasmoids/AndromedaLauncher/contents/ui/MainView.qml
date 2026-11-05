@@ -209,7 +209,7 @@ Item {
 
       //  icon.name: showAllApps ? "go-previous" : "go-next"
         icon.height: 15
-        icon.width: icon.height
+        icon.width: 15
 
         font.pointSize: textSize
         font.family: textFont

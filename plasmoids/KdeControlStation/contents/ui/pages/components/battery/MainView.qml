@@ -68,7 +68,7 @@ PlasmaComponents3.ScrollView {
         Column {
             id: batteryList
 
-            spacing: PlasmaCore.Units.smallSpacing * 2
+            spacing: Kirigami.Units.smallSpacing * 2
 
             readonly property Item firstHeaderItem: {
                 if (powerProfileItem.visible) {

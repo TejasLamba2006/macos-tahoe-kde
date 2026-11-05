@@ -122,7 +122,7 @@ PlasmoidItem {
         id: executable
         engine: "executable"
         connectedSources: ["plasmashell -v"]
-        onNewData: {
+        onNewData: (sourceName, data) => {
             if(data["exit code"] == 0){
                 plasmaVersion = data.stdout.split(" ")[1].split(".")[1];
             }
@@ -132,7 +132,7 @@ PlasmoidItem {
     
     switchHeight: fullRepWidth
     switchWidth: fullRepWidth
-    preferredRepresentation: inPanel ? Plasmoid.compactRepresentation : Plasmoid.fullRepresentation
+    preferredRepresentation: inPanel ? compactRepresentation : fullRepresentation
     fullRepresentation: FullRepresentation { }
     compactRepresentation: CompactRepresentation {}
 

@@ -31,8 +31,8 @@ Lib.Slider {
         id: paSinkModel
     }
     
-    value: Math.round(sink.volume / Vol.PulseAudio.NormalVolume * 100)
-    secondaryTitle: Math.round(sink.volume / Vol.PulseAudio.NormalVolume * 100) + "%"
+    value: Math.round((sink ? sink.volume : 0) / Vol.PulseAudio.NormalVolume * 100)
+    secondaryTitle: Math.round((sink ? sink.volume : 0) / Vol.PulseAudio.NormalVolume * 100) + "%"
 
     showTitle: root.volume_widget_title
     thinSlider: root.volume_widget_thin
@@ -41,11 +41,11 @@ Lib.Slider {
     Binding {
         target: slider
         property: "value"
-        value: Math.round(sink.volume / Vol.PulseAudio.NormalVolume * 100)
+        value: Math.round((sink ? sink.volume : 0) / Vol.PulseAudio.NormalVolume * 100)
     }
     
     // Changes icon based on the current volume percentage
-    source: Funcs.volIconName(sink.volume, sink.muted)
+    source: Funcs.volIconName(sink ? sink.volume : 0, sink ? sink.muted : false)
 
     onPressedChanged: {
         if (!pressed) {

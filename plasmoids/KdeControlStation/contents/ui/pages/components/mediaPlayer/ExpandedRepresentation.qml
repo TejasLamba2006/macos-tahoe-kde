@@ -494,7 +494,7 @@ PlasmaExtras.Representation {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignLeft
                 text: i18nc("Remaining time for song e.g -5:42", "-%1",
-                            KCoreAddons.Format.formatDuration((seekSlider.to - seekSlider.value) / 1000, expandedRepresentation.durationFormattingOptions))
+                            KCoreAddons.Format.formatDuration(Math.max(0, (seekSlider.to - seekSlider.value) / 1000), expandedRepresentation.durationFormattingOptions))
                 opacity: 0.9
                 font: Kirigami.Theme.smallFont
                 color: songTitle.color

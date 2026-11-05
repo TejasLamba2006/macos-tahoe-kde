@@ -29,6 +29,7 @@ PAUSED_BY_DUCKING = set()
 CACHED_GCAL_MEETING = None
 LAST_GCAL_SCAN = 0
 ANNOUNCED_MEETING_IDS = set()
+LAST_PORTS = []
 
 WA_INJECT_JS = r"""
 (() => {
@@ -207,7 +208,7 @@ def handle_smart_media_ducking(bus, mic_apps, call_active=False):
     if should_duck:
         for svc in names:
             try:
-                obj = bus.get_object(svc, "/org/mpris/MediaPlayer2")
+                obj = bus.get_object(svc, "/org/mpris/MediaPlayer2", introspect=False)
                 props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
                 status = str(props.Get("org.mpris.MediaPlayer2.Player", "PlaybackStatus"))
                 if status == "Playing":
@@ -220,7 +221,7 @@ def handle_smart_media_ducking(bus, mic_apps, call_active=False):
         for svc in list(PAUSED_BY_DUCKING):
             if svc in names:
                 try:
-                    obj = bus.get_object(svc, "/org/mpris/MediaPlayer2")
+                    obj = bus.get_object(svc, "/org/mpris/MediaPlayer2", introspect=False)
                     props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
                     status = str(props.Get("org.mpris.MediaPlayer2.Player", "PlaybackStatus"))
                     if status == "Paused":
@@ -357,18 +358,15 @@ def poll_privacy_status():
     except Exception:
         pass
 
-    for vdev in glob.glob("/dev/video*"):
+    # ponytail: pure-Python /proc fd scan (own UID only), no fuser forks. Ceiling: O(all fds) per tick, fine at 3s.
+    for fd_link in glob.glob("/proc/[0-9]*/fd/*"):
         try:
-            res = subprocess.run(["fuser", vdev], capture_output=True, text=True, timeout=0.5)
-            pids = (res.stdout + " " + res.stderr).split()
-            for p in pids:
-                p_clean = "".join(ch for ch in p if ch.isdigit())
-                if p_clean:
-                    comm_path = f"/proc/{p_clean}/comm"
-                    if os.path.exists(comm_path):
-                        comm = open(comm_path).read().strip()
-                        if comm not in ("pipewire", "wireplumber") and comm not in cam_apps:
-                            cam_apps.append(comm)
+            if not os.readlink(fd_link).startswith("/dev/video"):
+                continue
+            pid = fd_link.split("/")[2]
+            comm = open(f"/proc/{pid}/comm").read().strip()
+            if comm not in ("pipewire", "wireplumber") and comm not in cam_apps:
+                cam_apps.append(comm)
         except Exception:
             pass
 
@@ -387,11 +385,15 @@ def poll_privacy_status():
         pass
     return bool(screen_apps), mic_apps
 
-def poll_ports_and_handoff(bus):
-    global LAST_HANDOFF_CLIP, LAST_HANDOFF_URL
+def poll_ports_and_handoff(bus, scan_ports=True):
+    global LAST_HANDOFF_CLIP, LAST_HANDOFF_URL, LAST_PORTS
     ports = []
     seen_ports = set()
+    if not scan_ports:
+        ports = list(LAST_PORTS)
     try:
+        if not scan_ports:
+            raise StopIteration  # ponytail: reuse cached ports between ss scans
         out = subprocess.check_output(["ss", "-tlnp"], text=True, stderr=subprocess.DEVNULL, timeout=1.0)
         for line in out.splitlines()[1:]:
             parts = line.split()
@@ -429,9 +431,11 @@ def poll_ports_and_handoff(bus):
                 "cmd": cmdline,
                 "url": f"http://localhost:{port}"
             })
-    except Exception:
+    except (Exception, StopIteration):
         pass
-    ports.sort(key=lambda x: x["port"])
+    if scan_ports:
+        ports.sort(key=lambda x: x["port"])
+        LAST_PORTS = list(ports)
 
     # Merge Handoff state written by macos-handoff-daemon.py
     handoff_state = {}
@@ -446,7 +450,7 @@ def poll_ports_and_handoff(bus):
     # Also detect URLs copied on desktop via Klipper
     clip_text = ""
     try:
-        klipper = bus.get_object("org.kde.klipper", "/klipper")
+        klipper = bus.get_object("org.kde.klipper", "/klipper", introspect=False)
         clip_iface = dbus.Interface(klipper, "org.kde.klipper.klipper")
         clip_text = str(clip_iface.getClipboardContents() or "").strip()
     except Exception:
@@ -552,11 +556,15 @@ def main():
     share_streak = 0
     stop_streak = 0
     boot_healed = False
+    tick = 0
 
     while True:
-        ensure_whatsapp_blur()
+        scan_now = tick % 3 == 0  # ponytail: ss + WhatsApp blur every 3rd tick (~9s)
+        if scan_now:
+            ensure_whatsapp_blur()
         raw_sharing, mic_apps = poll_privacy_status()
-        poll_ports_and_handoff(bus)
+        poll_ports_and_handoff(bus, scan_now)
+        tick += 1
         call_active = False
         try:
             hs_path = f"/run/user/{os.getuid()}/macos-handoff-state.json"
@@ -579,7 +587,7 @@ def main():
 
         if share_streak >= 2 and not was_sharing:
             try:
-                notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+                notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications", introspect=False)
                 iface = dbus.Interface(notif, "org.freedesktop.Notifications")
                 inhibit_cookie = int(iface.Inhibit("macos-screenshare-privacy", "Screen Sharing Active", dbus.Dictionary({}, signature="sv")))
             except Exception:
@@ -591,7 +599,7 @@ def main():
         elif stop_streak >= 3 and was_sharing:
             if inhibit_cookie is not None:
                 try:
-                    notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+                    notif = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications", introspect=False)
                     iface = dbus.Interface(notif, "org.freedesktop.Notifications")
                     iface.UnInhibit(dbus.UInt32(inhibit_cookie))
                 except Exception:
@@ -601,7 +609,7 @@ def main():
             set_desktop_icons_visible(True)
             was_sharing = False
 
-        time.sleep(2.0)
+        time.sleep(3.0)
 
 if __name__ == "__main__":
     main()
