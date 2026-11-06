@@ -17,8 +17,15 @@ static bool is_plasmashell() {
         return false;
     }
     fclose(f);
-    cached = (std::strncmp(comm, "plasmashell", 11) == 0) ? 1 : 0;
-    return cached == 1;
+    if (std::strncmp(comm, "plasmashell", 11) == 0) {
+        // Clear LD_PRELOAD from environment immediately so child apps spawned by plasmashell
+        // (Konsole, Chrome, scripts, etc.) never inherit LD_PRELOAD!
+        unsetenv("LD_PRELOAD");
+        cached = 1;
+        return true;
+    }
+    cached = 0;
+    return false;
 }
 
 __attribute__((constructor))
