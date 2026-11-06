@@ -157,7 +157,6 @@ PlasmoidItem {
     Binding { target: root.calendarBackend; property: "refreshMinutes"; value: root.cfg.calendarRefreshMinutes; when: root.calendarBackend !== null }
     Connections {
         target: root.calendarBackend
-        enabled: root.calendarBackend !== null
         function onStatusJsonChanged() { root.cfg.calendarStatus = root.calendarBackend.statusJson; }
     }
     // Adding events needs the account itself (CalDAV); the links above are read-only.
@@ -188,7 +187,6 @@ PlasmoidItem {
     // Changes made in the settings dialog reach the backend too.
     Connections {
         target: root.cfg
-        enabled: root.cfg !== null
         function onNotesSourcesChanged() { if (notesBackend.sourcesJson !== root.cfg.notesSources) notesBackend.sourcesJson = root.cfg.notesSources; }
     }
     // The AI tab: quick questions to Claude Code on this computer, a local model or a service
@@ -212,13 +210,11 @@ PlasmoidItem {
     // What the island changes reaches the settings, and what the settings window changes reaches the island.
     Connections {
         target: root.aiBackend
-        enabled: root.aiBackend !== null
         function onSourcesJsonChanged() { if (root.cfg.aiSources !== root.aiBackend.sourcesJson) root.cfg.aiSources = root.aiBackend.sourcesJson; }
         function onAcknowledgedJsonChanged() { if (root.cfg.aiAcknowledged !== root.aiBackend.acknowledgedJson) root.cfg.aiAcknowledged = root.aiBackend.acknowledgedJson; }
     }
     Connections {
         target: root.cfg
-        enabled: root.cfg !== null
         function onAiSourcesChanged() { if (root.aiBackend !== null && root.aiBackend.sourcesJson !== root.cfg.aiSources) root.aiBackend.sourcesJson = root.cfg.aiSources; }
         function onAiAcknowledgedChanged() { if (root.aiBackend !== null && root.aiBackend.acknowledgedJson !== root.cfg.aiAcknowledged) root.aiBackend.acknowledgedJson = root.cfg.aiAcknowledged; }
     }
@@ -247,7 +243,6 @@ PlasmoidItem {
     readonly property var cloudBackend: cloudLoader.item
     Connections {
         target: root.cloudBackend
-        enabled: root.cloudBackend !== null
         function onAlertedJsonChanged() { if (root.cfg.cloudAlerted !== root.cloudBackend.alertedJson) root.cfg.cloudAlerted = root.cloudBackend.alertedJson; }
         function onLastTargetChanged() { if (root.cfg.cloudLastTarget !== root.cloudBackend.lastTarget) root.cfg.cloudLastTarget = root.cloudBackend.lastTarget; }
     }
@@ -305,7 +300,6 @@ PlasmoidItem {
     }
     Connections {
         target: root.cfg
-        enabled: root.cfg !== null
         function onCommandPathsChanged() { Requirements.recheck(); }
     }
     Binding { target: root.core; property: "updatesEnabled"; value: root.cfg.showUpdates; when: root.core !== null }
@@ -325,7 +319,8 @@ PlasmoidItem {
     function settingsNow(kept: bool): var {
         return { settingsSchema: root.cfg.settingsSchema, islandLayout: root.cfg.islandLayout, notchMode: root.cfg.notchMode,
                  installedVersion: root.cfg.installedVersion, settingsKept: kept, layoutNotice: root.cfg.layoutNotice,
-                 fullscreenMode: root.cfg.fullscreenMode, notchFullscreen: root.cfg.notchFullscreen, tourShown: root.cfg.tourShown };
+                 fullscreenMode: root.cfg.fullscreenMode, notchFullscreen: root.cfg.notchFullscreen, tourShown: root.cfg.tourShown,
+                 peekSize: root.cfg.peekSize };
     }
     function migrateSettings(kept: bool, restored: bool): void {
         const changes = Migration.migrate(root.settingsNow(kept), restored);
@@ -334,7 +329,8 @@ PlasmoidItem {
             console.info("org.phobby.dynamicisland: settings brought up to version " + changes.settingsSchema
                          + (changes.islandLayout !== undefined ? ", layout " + (changes.islandLayout === 0 ? "notch" : "oval") : "")
                          + (changes.fullscreenMode !== undefined ? ", full-screen mode " + changes.fullscreenMode : "")
-                         + (changes.tourShown !== undefined ? ", no first-run tour (ran before)" : ""));
+                         + (changes.tourShown !== undefined ? ", no first-run tour (ran before)" : "")
+                         + (changes.peekStrip !== undefined ? ", strip " + changes.peekStrip + " px" : ""));
     }
     Timer {
         interval: 4000
@@ -647,7 +643,6 @@ PlasmoidItem {
             onLoaded: item.notify = Qt.binding(() => root.cfg.aiNotify)
             Connections {
                 target: aiActivity.item
-                enabled: aiActivity.item !== null
                 function onOpened() { island.openPage("ai"); }
             }
         }
@@ -663,7 +658,6 @@ PlasmoidItem {
             Component.onCompleted: reload()
             Connections {
                 target: cloudActivity.item
-                enabled: cloudActivity.item !== null
                 function onOpened(id) { island.openPage("cloud"); }
             }
         }
@@ -821,7 +815,6 @@ PlasmoidItem {
             Component.onCompleted: setSource("AiPage.qml", { theme: root.islandTheme, ai: root.aiBackend })
             Connections {
                 target: item
-                enabled: item !== null
                 function onDefaultPicked(id) { root.cfg.aiDefault = id; }
             }
         }
@@ -985,9 +978,12 @@ PlasmoidItem {
             item.area = Qt.binding(() => root.notchWanted && root.fullscreenMode >= 2 && root.cfg.notchDodgeWindows ? root.notchArea : Qt.rect(0, 0, 0, 0));
         }
     }
+    // (the notch at rest: the width and size set, the panel's height; never as it is drawn now, shrunk,
+    // drawn up or open, which would change what it looks at: Fullscreen.restArea)
     readonly property rect notchArea: {
-        const w = Math.round(island.pillWidth * theme.scale), h = Math.round(theme.pillHeight * theme.scale);
-        return Qt.rect(root.notchScreen.x + (root.notchScreen.width - w) / 2 + theme.offsetX, root.notchScreen.y, w, h);
+        const room = theme.screenWidth > 0 ? (theme.screenWidth - 2 * theme.screenMargin) / theme.restScale - 2 * theme.windowSidePad : 0;
+        const a = Fullscreen.restArea(root.notchScreen, root.cfg.notchMaxWidth, theme.pillWidth, theme.restPillHeight, theme.restScale, theme.offsetX, room);
+        return Qt.rect(a.x, a.y, a.width, a.height);
     }
     readonly property bool overFullscreen: fullscreenSeen.item !== null && fullscreenSeen.item.active
     readonly property bool overWindow: root.overFullscreen || fullscreenSeen.item !== null && fullscreenSeen.item.covered
@@ -997,12 +993,9 @@ PlasmoidItem {
     readonly property bool ringing: activities.live.some(a => a.category === "call" && a.pulse)
     readonly property string peekSignal: !(peek.away || peek.shrunk) ? "" : Fullscreen.signalOf({
         ringing: root.ringing, calling: activities.live.some(a => a.category === "call"),
-        recording: activities.live.some(a => a.category === "recording"),
-        critical: activities.waitingCritical, privacy: activities.indicators.length > 0 })
+        critical: activities.waitingCritical })
     readonly property color peekSignalColor: root.peekSignal === "call" ? "#30d158"
-                                            : root.peekSignal === "recording" ? theme.danger
                                             : root.peekSignal === "critical" ? "#ffd60a"
-                                            : root.peekSignal === "privacy" ? activities.indicators[0].color
                                             : "transparent"
     FullscreenPeek {
         id: peek
@@ -1025,7 +1018,6 @@ PlasmoidItem {
     // Opened otherwise while it is drawn up or in (a click on the nub, the menu, a shortcut): it comes down.
     Connections {
         target: island
-        enabled: island !== null
         function onExpandedChanged() { if (island.expanded && (peek.away || peek.shrunk)) peek.show(); }
     }
     // The oval island peeks from a window of the notch's kind (an overlay layer surface, the one kind of
@@ -1033,15 +1025,14 @@ PlasmoidItem {
     readonly property bool ovalOverlay: !root.notchWanted && root.fullscreenMode >= 2 && (peek.active || ovalReturn.running)
     Connections {
         target: peek
-        enabled: peek !== null
         function onActiveChanged() { if (!peek.active && !root.notchWanted && root.notchWindow !== null) ovalReturn.restart(); }
     }
     Timer { id: ovalReturn; interval: 420 }
     // There, where its Dialog would be (px below the top of the screen).
     readonly property real ovalDown: root.ovalOverlay && root.notchWindow !== null ? Math.max(0, dialog.y - root.ownScreen.y) : 0
-    // Drawn up: only cfg.peekSize px of the small island below the edge (its lower edge, the notch's rounded
-    // corners or the pill's), the island as large as it is.
-    readonly property real peekAwayY: root.cfg.peekSize - island.restBottom * theme.scale - root.ovalDown
+    // Drawn up: only cfg.peekStrip px of the small island below the edge (its lower edge, the notch's rounded
+    // corners or the pill's), the island as large as it is; 0: all of it above the edge, nothing drawn.
+    readonly property real peekAwayY: root.cfg.peekStrip - island.restBottom * theme.scale - root.ovalDown
     readonly property int peekMove: 260
     // How far the island is moved down in its window now (for where it takes the pointer and is blurred).
     readonly property real hostShift: ovalShift.y + peekShift.y
@@ -1079,10 +1070,7 @@ PlasmoidItem {
                                           : theme.pillHeight) + theme.windowTopPad + theme.windowBottomPad + (root.slideRoom + root.ovalDown) / theme.scale
 
     Connections {
-
         target: island
-
-        enabled: island !== null
         function onWantsKeyboardChanged() { if (island.wantsKeyboard) (root.notchWindow !== null ? root.notchWindow : dialog).requestActivate(); }
     }
 
@@ -1096,6 +1084,8 @@ PlasmoidItem {
         location: PlasmaCore.Types.Floating
         backgroundHints: PlasmaCore.Dialog.NoBackground
         hideOnWindowDeactivate: false
+        // Not transient for the view the widget sits in: an auto-hiding panel stays shown while a window transient for it is visible.
+        transientParent: null
         // (in notch mode the island is in its own window, when there is one)
         visible: root.leads && root.notchWindow === null && !peek.hidden
 
@@ -1136,8 +1126,9 @@ PlasmoidItem {
         // (in steps, 12 a second, and only while there is something to say: see Island's dot).
         Rectangle {
             objectName: "peekSignal"
-            visible: root.peekSignal !== ""
-            readonly property real room: peek.away ? root.cfg.peekSize : 6
+            // (with nothing showing, drawn up: the light at the edge says it instead)
+            visible: root.peekSignal !== "" && !(peek.away && root.cfg.peekStrip === 0)
+            readonly property real room: peek.away ? root.cfg.peekStrip : 6
             width: Math.min(island.surfaceRect.width * theme.scale * 0.5, 120)
             height: Math.max(2, room - 2)
             radius: height / 2
@@ -1290,8 +1281,9 @@ PlasmoidItem {
         readonly property real centre: islandHost.x + (island.surfaceRect.x + island.surfaceRect.width / 2) * theme.scale
         width: Math.min(parent ? parent.width : 0, (root.cfg.peekWidth > 0 && peek.away ? root.cfg.peekWidth : island.surfaceRect.width) * theme.scale)
         x: Math.max(0, Math.min((parent ? parent.width : 0) - width, centre - width / 2))
-        // (drawn up: what shows of it, from the topmost row of pixels down; nothing below it takes the pointer)
-        height: peek.away ? root.cfg.peekSize : Math.max(1, root.hostShift + island.surfaceRect.y * theme.scale + 2)
+        // (drawn up: what shows of it, from the topmost row of pixels down, at least cfg.peekTrigger px, also
+        // with nothing showing; nothing below it takes the pointer)
+        height: peek.away ? Math.max(root.cfg.peekStrip, root.cfg.peekTrigger) : Math.max(1, root.hostShift + island.surfaceRect.y * theme.scale + 2)
         HoverHandler { id: edgeHover }
         Rectangle {
             anchors.fill: parent
@@ -1300,6 +1292,40 @@ PlasmoidItem {
         }
     }
     readonly property rect peekEdgeRect: Qt.rect(peekEdge.x, 0, peekEdge.width, peekEdge.height)
+    // The light at the edge, drawn up (PeekGlow.qml): while the pointer is at the place that opens it, and
+    // in an event's colour, pulsing, while one waits; with nothing showing that light is there even when it is off.
+    // The pointer coming near: from the top edge down to a little above the closed notch's lower edge, as
+    // wide as the light, told by KWin (PointerBridge.qml) so that nothing there takes a click; without it
+    // (an older native module, no KWin) the light comes on at the opening place only.
+    Loader {
+        id: pointerNear
+        active: root.leads && root.cfg.peekGlow && (root.fullscreenMode === 2)
+        source: "PointerBridge.qml"
+        readonly property bool near: item !== null && item.near === true
+        onLoaded: {
+            item.active = Qt.binding(() => peek.away);
+            item.zone = Qt.binding(() => Qt.rect(Math.round(root.windowX + peekGlow.x), Math.round(root.islandScreen.y),
+                                                 Math.round(peekGlow.width),
+                                                 Math.max(1, Math.round(island.restBottom * theme.scale + root.ovalDown) - 4)));
+        }
+    }
+    PeekGlow {
+        id: peekGlow
+        objectName: "peekGlow"
+        parent: peekEdge.parent
+        z: 10
+        readonly property real spread: Math.round(32 * theme.scale)
+        width: Math.min(parent ? parent.width : 0, peekEdge.width + 2 * spread)
+        height: Math.round(18 * theme.scale)
+        x: Math.max(0, Math.min((parent ? parent.width : 0) - width, peekEdge.centre - width / 2))
+        y: 0
+        color: root.peekSignal !== "" ? root.peekSignalColor
+             : root.cfg.peekGlowColor === 2 ? root.cfg.peekGlowCustom
+             : root.cfg.peekGlowColor === 0 ? theme.accent : Kirigami.Theme.highlightColor
+        strength: root.cfg.peekGlowStrength / 100
+        pulse: root.peekSignal !== ""
+        lit: peek.away && (root.cfg.peekGlow && (edgeHover.hovered || pointerNear.near) || root.peekSignal !== "" && (root.cfg.peekGlow || root.cfg.peekStrip === 0))
+    }
 
     // ---- where the island takes the pointer ------------------------------------------
     // The window is larger than what is drawn (room for the shadow, the morph, the larger

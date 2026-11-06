@@ -5,7 +5,6 @@
     load and every feature depending on it hides itself.
 */
 import QtQuick
-import org.kde.plasma.plasmoid
 import org.phobby.dynamicisland.core as Core
 
 Item {

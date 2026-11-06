@@ -804,6 +804,60 @@ Module {
         Signal { name: "usageChanged"; lineNumber: 45 }
     }
     Component {
+        file: "pointerwatch.h"
+        lineNumber: 25
+        name: "PointerWatch"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["org.phobby.dynamicisland.core/PointerWatch 1.0"]
+        exportMetaObjectRevisions: [256]
+        Property {
+            name: "active"
+            type: "bool"
+            read: "active"
+            write: "setActive"
+            notify: "activeChanged"
+            index: 0
+            lineNumber: 30
+        }
+        Property {
+            name: "zone"
+            type: "QRect"
+            read: "zone"
+            write: "setZone"
+            notify: "zoneChanged"
+            index: 1
+            lineNumber: 31
+        }
+        Property {
+            name: "near"
+            type: "bool"
+            read: "isNear"
+            notify: "nearChanged"
+            index: 2
+            lineNumber: 32
+            isReadonly: true
+        }
+        Property {
+            name: "available"
+            type: "bool"
+            read: "isAvailable"
+            notify: "availableChanged"
+            index: 3
+            lineNumber: 33
+            isReadonly: true
+        }
+        Signal { name: "activeChanged"; lineNumber: 51 }
+        Signal { name: "zoneChanged"; lineNumber: 52 }
+        Signal { name: "nearChanged"; lineNumber: 53 }
+        Signal { name: "availableChanged"; lineNumber: 54 }
+        Method {
+            name: "Near"
+            lineNumber: 48
+            Parameter { name: "near"; type: "bool" }
+        }
+    }
+    Component {
         file: "popupwatcher.h"
         lineNumber: 14
         name: "PopupWatcher"
