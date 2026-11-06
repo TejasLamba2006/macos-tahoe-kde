@@ -87,7 +87,7 @@ PlasmaExtras.Representation {
 
     PlasmaCalendar.EventPluginsManager {
         id: eventPluginsManager
-        enabledPlugins: Plasmoid.configuration.enabledCalendarPlugins
+        enabledPlugins: (Plasmoid.configuration.enabledCalendarPlugins && Plasmoid.configuration.enabledCalendarPlugins.length > 0) ? Plasmoid.configuration.enabledCalendarPlugins : ["pimevents", "holidaysevents"]
         onPluginsChanged: rebuildTimer.restart()
     }
 
