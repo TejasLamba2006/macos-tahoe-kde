@@ -1,12 +1,13 @@
 [Unit]
 Description=macOS Screen Sharing Privacy Watcher (Auto-DND + Presentation Mode)
-After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+After=graphical-session.target pipewire.service plasma-plasmashell.service
 
 [Service]
 Type=simple
-ExecStart=@HOME@/.local/bin/macos-screenshare-privacy.py
+ExecStart=%h/.local/bin/macos-screenshare-privacy.py
 Restart=always
 RestartSec=2
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

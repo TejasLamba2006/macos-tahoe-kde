@@ -1,12 +1,13 @@
 [Unit]
 Description=macOS Handoff Bidirectional Universal Clipboard (Text, URLs & Images)
-After=graphical-session.target
+PartOf=graphical-session.target
+After=graphical-session.target plasma-plasmashell.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 @HOME@/.local/bin/macos-handoff-daemon.py
+ExecStart=/usr/bin/python3 %h/.local/bin/macos-handoff-daemon.py
 Restart=always
 RestartSec=2
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
