@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/notifications">
+        <file alias="WidgetStack.qml">WidgetStack.qml</file>
+        <file alias="FullRepresentation.qml">FullRepresentation.qml</file>
+        <file alias="DraggableDelegate.qml">DraggableDelegate.qml</file>
+        <file alias="delegates/DelegateHistory.qml">delegates/DelegateHistory.qml</file>
+        <file alias="delegates/DelegateHistoryGrouped.qml">delegates/DelegateHistoryGrouped.qml</file>
+        <file alias="components/NotificationHeader.qml">components/NotificationHeader.qml</file>
+    </qresource>
+</RCC>

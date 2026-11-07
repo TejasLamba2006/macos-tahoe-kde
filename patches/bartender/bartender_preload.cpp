@@ -5,6 +5,8 @@
 #include <cstring>
 #include <dlfcn.h>
 
+static bool notificationResourceLoaded = false;
+
 static bool is_plasmashell() {
     static int cached = -1;
     if (cached != -1) return cached == 1;
@@ -34,6 +36,7 @@ static void register_bartender_rcc() {
     const char* home = std::getenv("HOME");
     if (home) {
         QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/bartender.rcc"));
+        notificationResourceLoaded = QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/notification-center.rcc"));
     }
 }
 
@@ -48,7 +51,8 @@ int qmlregister(RegistrationType type, void *data) {
             if (dladdr(reinterpret_cast<void *>(hook->lookupCachedQmlUnit), &info) && info.dli_fname) {
                 if (std::strstr(info.dli_fname, "org.kde.plasma.systemtray.so") ||
                     std::strstr(info.dli_fname, "org.kde.plasma.digitalclock.so") ||
-                    std::strstr(info.dli_fname, "org.kde.plasma.kickoff.so")) {
+                    std::strstr(info.dli_fname, "org.kde.plasma.kickoff.so") ||
+                    (notificationResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.notifications.so"))) {
                     return 0;
                 }
             }

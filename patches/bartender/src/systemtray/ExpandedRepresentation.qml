@@ -17,6 +17,7 @@ Item {
     id: popup
 
     readonly property bool showingGrid: systemTrayState.activeApplet === null
+    readonly property bool showingNotifications: !!systemTrayState.activeApplet?.fullRepresentationItem?.historyModel
     readonly property int pillW: Math.max(64, root.hiddenModel.count * 32 + 16)
     readonly property int pillH: 36
 
@@ -24,9 +25,9 @@ Item {
     Layout.preferredWidth: showingGrid ? pillW : Kirigami.Units.gridUnit * 20
     Layout.maximumWidth: showingGrid ? pillW : Kirigami.Units.gridUnit * 24
 
-    Layout.minimumHeight: showingGrid ? pillH : Kirigami.Units.gridUnit * 18
-    Layout.preferredHeight: showingGrid ? pillH : Kirigami.Units.gridUnit * 18
-    Layout.maximumHeight: showingGrid ? pillH : Kirigami.Units.gridUnit * 24
+    Layout.minimumHeight: showingGrid ? pillH : showingNotifications ? 620 : Kirigami.Units.gridUnit * 18
+    Layout.preferredHeight: showingGrid ? pillH : showingNotifications ? 620 : Kirigami.Units.gridUnit * 18
+    Layout.maximumHeight: showingGrid ? pillH : showingNotifications ? 800 : Kirigami.Units.gridUnit * 24
 
     property alias hiddenLayout: hiddenItemsView.layout
     property alias plasmoidContainer: container

@@ -107,6 +107,11 @@ kwriteconfig6 --file kdeglobals --group "Sounds" --key "Theme" "macOS"
 kwriteconfig6 --file kdeglobals --group "Sounds" --key "Enable" "true"
 kwriteconfig6 --file plasmarc --group "Theme" --key "name" "MacTahoe-Dark"
 
+echo "==> Building scoped macOS menu and notification resources..."
+UI_BUILD=$(mktemp -d)
+python3 -I "$REPO_DIR/tools/install-ui-resources.py" --output "$UI_BUILD" --install
+rm -rf "$UI_BUILD"
+
 echo "==> Installing systemd user services & LimitNOFILE drop-ins..."
 mkdir -p "$USER_HOME/.config/systemd/user"
 for svc in "$REPO_DIR"/systemd/*.service "$REPO_DIR"/systemd/*.timer; do
