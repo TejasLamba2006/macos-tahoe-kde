@@ -5,8 +5,23 @@ import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
-def toggle():
-    subprocess.Popen(["/usr/bin/vicinae", "toggle"])
+def launch():
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "start", "vicinae.service"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    subprocess.Popen(
+        ["/usr/bin/vicinae", "toggle"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
 def clipboard():
     subprocess.Popen(["/usr/bin/vicinae", "cmd", "launch", "clipboard:history"])
@@ -17,15 +32,15 @@ class KRunnerApp(dbus.service.Object):
 
     @dbus.service.method("org.kde.krunner.App", in_signature="", out_signature="")
     def display(self):
-        toggle()
+        launch()
 
     @dbus.service.method("org.kde.krunner.App", in_signature="s", out_signature="")
     def query(self, term):
-        toggle()
+        launch()
 
     @dbus.service.method("org.kde.krunner.App", in_signature="", out_signature="")
     def toggleDisplay(self):
-        toggle()
+        launch()
 
     @dbus.service.method("org.kde.krunner.App", in_signature="", out_signature="")
     def displayWithClipboardContents(self):
@@ -37,18 +52,18 @@ class KRunnerApp(dbus.service.Object):
 
     @dbus.service.method("org.freedesktop.Application", in_signature="a{sv}", out_signature="")
     def Activate(self, platform_data):
-        toggle()
+        launch()
 
     @dbus.service.method("org.freedesktop.Application", in_signature="asa{sv}", out_signature="")
     def Open(self, uris, platform_data):
-        toggle()
+        launch()
 
     @dbus.service.method("org.freedesktop.Application", in_signature="sava{sv}", out_signature="")
     def ActivateAction(self, action_name, parameter, platform_data):
         if action_name == "RunClipboard":
             clipboard()
         else:
-            toggle()
+            launch()
 
 if __name__ == "__main__":
     DBusGMainLoop(set_as_default=True)
