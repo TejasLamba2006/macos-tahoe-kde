@@ -1,52 +1,8 @@
 #!/usr/bin/env bash
-# ponytail: 100% dynamic DRM connector & panel reconciler — reads live connected DRM outputs (eDP-*, HDMI-A-*, DP-*), maps [ScreenConnectors] dynamically, ensures every connected screen has Top Menu Bar + Bottom Dock + Aerial Wallpaper, and refreshes PlasmaViews geometry
-
-sync_screen_connectors() {
-    python3 -I -c '
-import glob, os, re, subprocess, sys
-
-# 1. Discover live connected DRM outputs dynamically (internal eDP first as Screen 0, external HDMI/DP/etc. as Screen 1..N)
-connected = []
-for status_file in sorted(glob.glob("/sys/class/drm/card*-*/status")):
-    try:
-        if open(status_file).read().strip() == "connected":
-            dirname = os.path.basename(os.path.dirname(status_file))
-            conn_name = re.sub(r"^card\d+-", "", dirname)
-            if conn_name not in connected:
-                connected.append(conn_name)
-    except Exception:
-        pass
-
-connected.sort(key=lambda c: (0 if c.startswith("eDP") else 1, c))
-if not connected:
-    sys.exit(1)
-
-rc_path = os.path.expanduser("~/.config/plasmashellrc")
-text = open(rc_path, "r", encoding="utf-8", errors="ignore").read() if os.path.exists(rc_path) else ""
-
-m_sec = re.search(r"\[ScreenConnectors\]\n([^\[]*)", text)
-current_map = {}
-if m_sec:
-    for line in m_sec.group(1).splitlines():
-        if "=" in line:
-            k, v = line.split("=", 1)
-            current_map[k.strip()] = v.strip()
-
-changed = False
-for idx, conn in enumerate(connected):
-    k = str(idx)
-    if current_map.get(k) != conn:
-        for old_k, old_v in list(current_map.items()):
-            if old_v == conn and old_k != k:
-                subprocess.run(["kwriteconfig6", "--file", rc_path, "--group", "ScreenConnectors", "--key", old_k, "--delete"])
-        subprocess.run(["kwriteconfig6", "--file", rc_path, "--group", "ScreenConnectors", "--key", k, conn])
-        changed = True
-
-sys.exit(0 if changed else 1)
-'
-}
+# ponytail: DRM connector reconciler — updates persistent connector mapping only; Plasma/KWin own live panel geometry during hotplug
 
 STATE_FILE="/tmp/macos-multiscreen-topology.state"
+PENDING_FILE="/tmp/macos-drm-disconnect-pending"
 
 get_live_topology() {
     python3 -I -c '
@@ -58,106 +14,75 @@ for status_file in sorted(glob.glob("/sys/class/drm/card*-*/status")):
             conn = re.sub(r"^card\d+-", "", os.path.basename(os.path.dirname(status_file)))
             if conn not in connected:
                 connected.append(conn)
-    except Exception:
+    except OSError:
         pass
 connected.sort(key=lambda c: (0 if c.startswith("eDP") else 1, c))
 print(",".join(connected))
 '
 }
 
-reconcile_panels_and_views() {
-    if ! busctl --user status org.kde.plasmashell >/dev/null 2>&1; then
-        return 1
-    fi
-    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
-var n = screenCount;
-var allPanels = panels();
-var topByScreen = {};
-var bottomByScreen = {};
-var homelessTop = [];
-var homelessBot = [];
+sync_screen_connectors() {
+    local topology="$1"
+    python3 -I - "$topology" <<'PY'
+import os, re, subprocess, sys
+connected = [c for c in sys.argv[1].split(",") if c]
+if not connected:
+    raise SystemExit(1)
 
-for (var i = 0; i < allPanels.length; i++) {
-    var p = allPanels[i];
-    if (p.location === "top") {
-        if (p.screen >= 0 && p.screen < n && !topByScreen[p.screen]) {
-            topByScreen[p.screen] = p;
-        } else if (p.screen < 0 || p.screen >= n) {
-            homelessTop.push(p);
-        }
-    } else if (p.location === "bottom") {
-        if (p.screen >= 0 && p.screen < n && !bottomByScreen[p.screen]) {
-            bottomByScreen[p.screen] = p;
-        } else if (p.screen < 0 || p.screen >= n) {
-            homelessBot.push(p);
-        }
-    }
+rc_path = os.path.expanduser("~/.config/plasmashellrc")
+text = open(rc_path, "r", encoding="utf-8", errors="ignore").read() if os.path.exists(rc_path) else ""
+m_sec = re.search(r"\[ScreenConnectors\]\n([^\[]*)", text)
+current = {}
+if m_sec:
+    for line in m_sec.group(1).splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            current[k.strip()] = v.strip()
+
+changed = False
+wanted = {str(i): conn for i, conn in enumerate(connected)}
+for key, conn in wanted.items():
+    if current.get(key) != conn:
+        subprocess.run(["kwriteconfig6", "--file", rc_path, "--group", "ScreenConnectors", "--key", key, conn], check=True)
+        changed = True
+for key in current.keys() - wanted.keys():
+    subprocess.run(["kwriteconfig6", "--file", rc_path, "--group", "ScreenConnectors", "--key", key, "--delete"], check=True)
+    changed = True
+raise SystemExit(0 if changed else 1)
+PY
 }
 
-for (var s = 0; s < n; s++) {
-    var topP = topByScreen[s] || homelessTop.shift();
-    if (topP) {
-        if (topP.screen !== s) topP.screen = s;
-        topP.location = "top";
-        topP.floating = true;
-        topP.floating = false;
-        topP.hiding = "autohide";
-        topP.hiding = "none";
-        topP.lengthMode = "fill";
-        topP.height = 28;
-    }
-    var botP = bottomByScreen[s] || homelessBot.shift();
-    if (botP) {
-        if (botP.screen !== s) botP.screen = s;
-        botP.location = "bottom";
-        botP.floating = true;
-        botP.hiding = "dodgewindows";
-        botP.lengthMode = "fit";
-        botP.height = 62;
-    }
-}
-
-var desk = desktops();
-for (var d = 0; d < desk.length; d++) {
-    desk[d].currentConfigGroup = ["General"];
-    if (desk[d].readConfig("url") === "file:///tmp/empty-desktop") {
-        desk[d].writeConfig("url", "desktop:/");
-    }
-    if (desk[d].wallpaperPlugin !== "io.github.birkneralex.aerial") {
-        desk[d].wallpaperPlugin = "io.github.birkneralex.aerial";
-    }
-}
-' >/dev/null 2>&1 || true
+count_of() {
+    if [ -z "$1" ]; then printf '0\n'; else printf '%s\n' "$1" | tr ',' '\n' | wc -l; fi
 }
 
 LIVE_TOPO=$(get_live_topology)
+[ -z "$LIVE_TOPO" ] && exit 0
 PREV_TOPO=$(cat "$STATE_FILE" 2>/dev/null || true)
-PENDING_FILE="/tmp/macos-drm-disconnect-pending"
 
-count_of() {
-    if [ -z "$1" ]; then echo 0; else echo "$1" | tr ',' '\n' | wc -l; fi
-}
+# First run only records reality. Never mutate or restart Plasma from startup discovery.
+if [ -z "$PREV_TOPO" ]; then
+    printf '%s\n' "$LIVE_TOPO" > "$STATE_FILE"
+    sync_screen_connectors "$LIVE_TOPO" >/dev/null 2>&1 || true
+    exit 0
+fi
+
+[ "$LIVE_TOPO" = "$PREV_TOPO" ] && { rm -f "$PENDING_FILE"; exit 0; }
+
 LIVE_N=$(count_of "$LIVE_TOPO")
 PREV_N=$(count_of "$PREV_TOPO")
 
-# ponytail: 2-tick debounce for disconnects only (HDMI HPD blips); connects apply immediately. Ceiling: 4s window from timer interval.
-if [ "$LIVE_N" -lt "$PREV_N" ] && [ "$LIVE_TOPO" != "$PREV_TOPO" ]; then
-    if [ ! -f "$PENDING_FILE" ]; then
-        touch "$PENDING_FILE"
-        echo "Disconnect seen ($LIVE_TOPO); pending confirmation next tick."
-        exit 0
-    fi
+# Confirm every topology change twice. A DRM hotplug mutates containments asynchronously;
+# calling PlasmaShell.evaluateScript in that window crashed KConfigGroup::readEntry(maxLength).
+if [ ! -f "$PENDING_FILE" ] || [ "$(cat "$PENDING_FILE" 2>/dev/null)" != "$LIVE_TOPO" ]; then
+    printf '%s\n' "$LIVE_TOPO" > "$PENDING_FILE"
+    exit 0
 fi
 rm -f "$PENDING_FILE"
 
-if sync_screen_connectors; then
-    echo "ScreenConnectors updated dynamically ($LIVE_TOPO); restarting plasmashell..."
-    systemctl --user restart plasma-plasmashell.service
-    sleep 4
-    reconcile_panels_and_views
-    echo "$LIVE_TOPO" > "$STATE_FILE"
-elif [ "$LIVE_TOPO" != "$PREV_TOPO" ]; then
-    sleep 2
-    reconcile_panels_and_views
-    echo "$LIVE_TOPO" > "$STATE_FILE"
-fi
+sync_screen_connectors "$LIVE_TOPO" >/dev/null 2>&1 || true
+printf '%s\n' "$LIVE_TOPO" > "$STATE_FILE"
+
+# Connector mapping is read at startup. Restart only after the topology stayed stable for two ticks,
+# and never execute panel scripting while Plasma is processing the DRM event.
+systemctl --user restart plasma-plasmashell.service

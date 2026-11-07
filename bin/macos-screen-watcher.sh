@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ponytail: dynamic self-healing multi-screen watcher — reconciles live DRM connector names (eDP-*, HDMI-A-*, DP-*) with plasmashellrc [ScreenConnectors], refreshes panel views on topology change, and heals desktop icons automatically
+# ponytail: dynamic self-healing multi-screen watcher — reconciles live DRM connector names and heals desktop icons without racing Plasma's hotplug handling
 
 wait_for_plasma() {
     for _ in $(seq 1 30); do
@@ -28,7 +28,7 @@ m_map = re.search(r"^screenMapping=(.*)$", text, re.M)
 if m_dis and m_dis.group(1).strip():
     parts = [p.strip() for p in m_dis.group(1).strip().split(",") if p.strip()]
     if len(parts) >= 4:
-        scr, act = parts[0], parts[1]
+        act = parts[1]
         items = [p for p in parts[3:] if p.startswith("desktop:/")]
         existing = m_map.group(1).strip() if m_map else ""
         new_entries = ",".join(f"{it},0,{act}" for it in items if it not in existing)
@@ -39,8 +39,7 @@ if m_dis and m_dis.group(1).strip():
     fi
 }
 
-rm -f /tmp/macos-multiscreen-topology.state
-
+# Preserve last known topology across service restarts. Deleting it turns startup into a false hotplug.
 wait_for_plasma && {
     heal_desktop_icons
     ~/.local/bin/macos-multiscreen-sync.sh
@@ -49,10 +48,9 @@ wait_for_plasma && {
 while true; do
     sleep 4
     if ! busctl --user status org.kde.plasmashell >/dev/null 2>&1; then
-        rm -f /tmp/macos-multiscreen-topology.state
         systemctl --user reset-failed plasma-plasmashell.service 2>/dev/null || true
         systemctl --user start plasma-plasmashell.service 2>/dev/null || true
-        sleep 4
+        wait_for_plasma || continue
         heal_desktop_icons
         ~/.local/bin/macos-multiscreen-sync.sh
         continue
