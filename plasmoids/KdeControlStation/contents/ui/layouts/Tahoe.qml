@@ -7,27 +7,30 @@ import "components/ControlCenter" as LayoutComponents
 ColumnLayout {
     id: wrapper
     anchors.fill: parent
+    spacing: 4
     GridLayout {
         Layout.preferredHeight: root.sectionHeight * 1.3
         Layout.maximumHeight: root.sectionHeight *1.3
     
         rows: 3
         columns: 4
-        columnSpacing: 0
-        rowSpacing: 0
+        columnSpacing: 4
+        rowSpacing: 4
 
         Components.NetworkBtn {
             Layout.columnSpan: 2
             isLongButton: true
             glassEffect: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
 
         Components.MediaPlayer{
             Layout.columnSpan: 2
             Layout.rowSpan: 2
             glassEffect: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
 
         Components.BluetoothBtn{
@@ -37,7 +40,8 @@ ColumnLayout {
             fullSizeIcon: true
             title: ""
             showTitle: false
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
             sourceColor: "transparent"
         }
         Components.ColorSchemeSwitcher{
@@ -46,7 +50,8 @@ ColumnLayout {
             noMargins: true
             fullSizeIcon: true
             title: ""
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
             sourceColor: "transparent"
         }
 
@@ -54,7 +59,8 @@ ColumnLayout {
             Layout.columnSpan: 2
             glassEffect: true
             isLongButton: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
 
         Components.NightLight{
@@ -63,7 +69,8 @@ ColumnLayout {
             noMargins: true
             isLongButton: true
             title: ""
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
 
         Components.KDEConnect{
@@ -72,7 +79,8 @@ ColumnLayout {
             noMargins: true
             isLongButton: true
             title: ""
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
     }
 
@@ -81,14 +89,14 @@ ColumnLayout {
         Layout.maximumHeight: Layout.preferredHeight
         canTogglePage: true
         glassEffect: true
-        cornerRadius: 22
+        cornerRadius: 16
         mediumSizeSlider: true
     }
     Components.Volume{
         Layout.preferredHeight:  (root.sectionHeight*1.3) / 3
         Layout.maximumHeight: Layout.preferredHeight
         glassEffect: true
-        cornerRadius: 22
+        cornerRadius: 16
         mediumSizeSlider: true
     }
 
@@ -100,14 +108,15 @@ ColumnLayout {
 
         rows: 2
         columns: 4
-        columnSpacing: 0
-        rowSpacing: 0
+        columnSpacing: 4
+        rowSpacing: 4
     
         Components.Battery {
             id: battery
             Layout.columnSpan: 2
             glassEffect: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
             isLongButton: true
         }
         Components.ScreenshotBtn {
@@ -118,7 +127,8 @@ ColumnLayout {
             noMargins: true
             isLongButton: true
             title: ""
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
          }
         Components.SystemActions{
             id: systemActions
@@ -126,7 +136,8 @@ ColumnLayout {
             width: height
             glassEffect: true
             noMargins: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
         }
         Components.CommandRun{
             id: cmd1
@@ -135,7 +146,8 @@ ColumnLayout {
             icon: root.cmdIcon1
             command: root.cmdRun1
             glassEffect: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
             isLongButton: title !="" ? true : false
             Layout.columnSpan: isLongButton ? 2 : 1
         }
@@ -146,7 +158,8 @@ ColumnLayout {
             icon: root.cmdIcon2
             command: root.cmdRun2
             glassEffect: true
-            roundedWidget: true
+            roundedWidget: false
+            cornerRadius: 16
             isLongButton: title != "" ? true : false
             Layout.columnSpan: isLongButton ? 2 : 1
         }
