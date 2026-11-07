@@ -36,28 +36,8 @@ install -m 755 "$REPO_DIR/applications/vicinae-applications.desktop" \
     "$USER_HOME/.local/share/applications/vicinae-applications.desktop"
 update-desktop-database "$USER_HOME/.local/share/applications" 2>/dev/null || true
 kbuildsycoca6 2>/dev/null || true
-# Direct launcher binding. Keep KRunner D-Bus bridge and clipboard action intact.
-kwriteconfig6 --file kglobalshortcutsrc \
-    --group vicinae-applications.desktop \
-    --key _launch 'Alt+Space,Alt+Space,Vicinae Applications'
-# Remove only Alt+Space from KRunner; retain Meta+Space/Alt+F2 and RunClipboard.
-python3 -I - "$USER_HOME/.config/kglobalshortcutsrc" <<'PY'
-import configparser, sys
-from pathlib import Path
-p = Path(sys.argv[1])
-if p.exists():
-    cfg = configparser.RawConfigParser(strict=False, delimiters=("="), interpolation=None)
-    cfg.optionxform = str
-    cfg.read(p)
-    section = "org.kde.krunner.desktop"
-    if cfg.has_section(section) and cfg.has_option(section, "_launch"):
-        fields = cfg.get(section, "_launch").split(",", 2)
-        fields[0] = "\\t".join(k for k in fields[0].split("\\t") if k != "Alt+Space") or "none"
-        cfg.set(section, "_launch", ",".join(fields))
-        with p.open("w") as out:
-            cfg.write(out, space_around_delimiters=False)
-PY
-qdbus6 org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel.reconfigure 2>/dev/null || true
+# X-KDE-Shortcuts in the desktop entry registers Alt+Space with KGlobalAccel.
+# Keep KRunner D-Bus bridge and clipboard action intact.
 
 echo "==> Installing custom & patched macOS Plasmoids..."
 mkdir -p "$USER_HOME/.local/share/plasma/plasmoids"

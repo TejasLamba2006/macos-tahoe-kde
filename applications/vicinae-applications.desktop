@@ -1,9 +1,8 @@
 [Desktop Entry]
-Type=Application
 Name=Vicinae Applications
-Comment=Open the Vicinae application launcher
 Exec=/usr/bin/vicinae toggle
-Icon=system-search-symbolic
-Terminal=false
-Categories=Utility;
-X-KDE-GlobalAccel-CommandShortcut=true
+Icon=vicinae
+Type=Application
+NoDisplay=true
+StartupNotify=false
+X-KDE-Shortcuts=Alt+Space
