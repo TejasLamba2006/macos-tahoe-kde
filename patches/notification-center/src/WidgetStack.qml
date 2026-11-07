@@ -10,12 +10,13 @@ ColumnLayout {
     implicitHeight: 290
 
     property var settings: ({})
+    property double now: Date.now()
     readonly property url backendRoot: StandardPaths.writableLocation(StandardPaths.GenericDataLocation)
         + "/plasma/plasmoids/org.phobby.dynamicisland/contents/ui/backend/"
     readonly property var calendar: calendarLoader.item
     readonly property var weather: weatherLoader.item
     readonly property var upcoming: calendar && calendar.loaded
-        ? calendar.events.filter(e => e.end > Date.now()).slice(0, 2) : []
+        ? calendar.events.filter(e => e.end > widgets.now).slice(0, 2) : []
     readonly property bool calendarError: calendar && Object.keys(calendar.errors).length > 0
 
     function readSettings() {
@@ -26,6 +27,7 @@ ColumnLayout {
             for (const line of xhr.responseText.split("\n")) {
                 if (line.startsWith("calendarSources=")) config.calendarSources = line.slice(16);
                 if (line.startsWith("weatherLocation=")) config.weatherLocation = line.slice(16);
+                if (line.startsWith("weatherUnits=")) config.weatherUnits = Number(line.slice(13));
             }
             widgets.settings = config;
         };
@@ -35,7 +37,13 @@ ColumnLayout {
     }
 
     Component.onCompleted: readSettings()
-    Timer { interval: 60000; repeat: true; running: widgets.visible; onTriggered: widgets.readSettings() }
+    onVisibleChanged: if (visible) widgets.now = Date.now()
+    Timer {
+        interval: 60000
+        repeat: true
+        running: widgets.visible
+        onTriggered: { widgets.now = Date.now(); widgets.readSettings(); }
+    }
 
     Loader {
         id: calendarLoader
@@ -45,7 +53,10 @@ ColumnLayout {
     Loader {
         id: weatherLoader
         source: widgets.backendRoot + "WeatherBackend.qml"
-        onLoaded: item.location = Qt.binding(() => widgets.settings.weatherLocation || "")
+        onLoaded: {
+            item.location = Qt.binding(() => widgets.settings.weatherLocation || "")
+            item.imperial = Qt.binding(() => widgets.settings.weatherUnits === 1)
+        }
     }
     Battery.BatteryControlModel { id: battery }
 
@@ -62,14 +73,14 @@ ColumnLayout {
             anchors.margins: 14
             spacing: 6
             Text {
-                text: Qt.formatDate(new Date(), "dddd").toUpperCase()
+                text: Qt.formatDate(new Date(widgets.now), "dddd").toUpperCase()
                 color: "#ff453a"
                 font.family: "SF Pro Text"
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
             }
             Text {
-                text: Qt.formatDate(new Date(), "MMMM d")
+                text: Qt.formatDate(new Date(widgets.now), "MMMM d")
                 color: "white"
                 font.family: "SF Pro Display"
                 font.pixelSize: 22
