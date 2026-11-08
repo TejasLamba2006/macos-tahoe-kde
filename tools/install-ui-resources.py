@@ -22,7 +22,7 @@ def build(output: Path) -> None:
                               .replace("@USER_FULLNAME@", user))
         subprocess.run(["rcc", "-binary", str(staged / "bartender.qrc"),
                         "-o", str(output / "bartender.rcc")], check=True)
-        for name in ("notification-center", "dock"):
+        for name in ("notification-center", "brightness", "dock"):
             manifest = ROOT / "patches" / name / "src" / f"{name}.qrc"
             if manifest.exists():
                 subprocess.run(["rcc", "-binary", str(manifest), "-o",

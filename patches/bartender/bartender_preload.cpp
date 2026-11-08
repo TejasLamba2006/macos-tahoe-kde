@@ -6,6 +6,7 @@
 #include <dlfcn.h>
 
 static bool notificationResourceLoaded = false;
+static bool brightnessResourceLoaded = false;
 
 static bool is_plasmashell() {
     static int cached = -1;
@@ -36,6 +37,13 @@ static void register_bartender_rcc() {
     const char* home = std::getenv("HOME");
     if (home) {
         QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/bartender.rcc"));
+        const QString brightnessRoot = QStringLiteral("/macos-tahoe-brightness");
+        if (QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/brightness.rcc"), brightnessRoot)) {
+            // Check this RCC in isolation before mounting at native paths; old RCCs must retain native AOT.
+            brightnessResourceLoaded = QResource(brightnessRoot + QStringLiteral("/qt/qml/plasma/applet/org/kde/plasma/brightness/PopupDialog.qml")).isValid();
+            QResource::unregisterResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/brightness.rcc"), brightnessRoot);
+            brightnessResourceLoaded = brightnessResourceLoaded && QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/brightness.rcc"));
+        }
         notificationResourceLoaded = QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/notification-center.rcc"));
     }
 }
@@ -52,7 +60,9 @@ int qmlregister(RegistrationType type, void *data) {
                 if (std::strstr(info.dli_fname, "org.kde.plasma.systemtray.so") ||
                     std::strstr(info.dli_fname, "org.kde.plasma.digitalclock.so") ||
                     std::strstr(info.dli_fname, "org.kde.plasma.kickoff.so") ||
-                    (notificationResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.notifications.so"))) {
+                    (notificationResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.notifications.so")) ||
+                    (brightnessResourceLoaded && std::strcmp(std::strrchr(info.dli_fname, '/') ? std::strrchr(info.dli_fname, '/') + 1 : info.dli_fname,
+                                                             "org.kde.plasma.brightness.so") == 0)) {
                     return 0;
                 }
             }

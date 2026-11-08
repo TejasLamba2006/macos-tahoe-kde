@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/brightness">
+        <file alias="PopupDialog.qml">PopupDialog.qml</file>
+    </qresource>
+</RCC>
