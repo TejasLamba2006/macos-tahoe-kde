@@ -37,6 +37,18 @@ def check_qml():
     predicate = covered.group(1) if covered else "false"
     # Only compositor inputs are substituted; all policy/handlers come from source.
     predicate = predicate.replace("KWindowSystem.showingDesktop", "root.showingDesktop")
+
+    battery_pause = re.search(r"readonly property bool pauseOnBattery: ([^\n]+)", source)
+    battery_predicate = battery_pause.group(1) if battery_pause else "false"
+
+    should_pause = re.search(r"readonly property bool shouldPause: ([^\n]+)", source)
+    should_pause_predicate = should_pause.group(1) if should_pause else predicate
+
+    pause_handler = block(source, 'onShouldPauseChanged:') or block(source, 'onIsCoveredChanged:')
+    # Baseline compatibility: if testing unpatched source, onIsCoveredChanged handles shouldPause
+    if "onShouldPauseChanged:" not in source and "onIsCoveredChanged:" in pause_handler:
+        pause_handler = pause_handler.replace("onIsCoveredChanged:", "onShouldPauseChanged:")
+
     image = block(source, "    Image {")
     fallback = image.split("visible:", 1)[1].rsplit("}", 1)[0].strip()
     players = "\n".join(block(source[m.start():], "MediaPlayer {")
@@ -50,8 +62,17 @@ Item {{
     property bool loading: true
     property bool showingDesktop: false
     property alias coveredCount: activeWindowMonitor.count
+    property alias batteryPluggedIn: battery.pluggedIn
+    property alias hasBatteries: battery.hasBatteries
+    property var configuration: ({{ PauseOnBattery: false }})
+
     QtObject {{ id: activeWindowMonitor; property int count: 0 }}
+    QtObject {{ id: battery; property bool hasBatteries: true; property bool pluggedIn: true }}
+
     readonly property bool isCovered: {predicate}
+    readonly property bool pauseOnBattery: {battery_predicate}
+    readonly property bool shouldPause: {should_pause_predicate}
+
     readonly property int stateA: playerA.playbackState
     readonly property int stateB: playerB.playbackState
     readonly property int positionA: playerA.position
@@ -61,7 +82,7 @@ Item {{
     function advance() {{ unexpectedAdvance++; }}
     VideoOutput {{ id: videoOutputA }}
     VideoOutput {{ id: videoOutputB }}
-    {block(source, 'onIsCoveredChanged:')}
+    {pause_handler}
     {block(source, 'function playSource(source)')}
     {players}
 }}"""
@@ -94,6 +115,8 @@ Item {{
             root.playSource(url)
             wait_for(lambda: states(0, 1), "Uncovered source did not play")
             wait_for(lambda: root.property("positionB") > 0, "Playback did not advance")
+
+            # 1. Window coverage pause & Show Desktop resume
             root.setProperty("coveredCount", 1)
             wait_for(lambda: states(0, 2), "Covered desktop did not pause production player")
             assert not root.property("fallbackVisible"), "Paused frame hidden by fallback"
@@ -112,6 +135,48 @@ Item {{
             assert not root.property("fallbackVisible"), "Paused fresh source hidden"
             root.setProperty("coveredCount", 0)
             wait_for(lambda: states(1, 0), "Uncover did not resume new active player")
+
+            # 2. Battery policy: default-off, user-visible toggle, native battery state
+            # Unplug AC power while PauseOnBattery is false (default): must stay playing
+            root.setProperty("batteryPluggedIn", False)
+            QTest.qWait(50)
+            assert states(1, 0), "Unplugged AC paused wallpaper while PauseOnBattery was disabled"
+
+            # Enable PauseOnBattery while on battery: must pause active player
+            root.setProperty("configuration", {"PauseOnBattery": True})
+            wait_for(lambda: states(2, 0), "Enabling PauseOnBattery did not pause player on battery")
+            assert not root.property("fallbackVisible"), "Paused battery frame hidden by fallback"
+
+            # Opted-in battery pause precedence: Show Desktop MUST NOT resume wallpaper on battery
+            root.setProperty("showingDesktop", True)
+            QTest.qWait(60)
+            assert states(2, 0), "Show Desktop resumed wallpaper despite opted-in PauseOnBattery"
+            root.setProperty("showingDesktop", False)
+
+            # Fresh source loaded while paused on battery must settle paused
+            root.playSource(url)
+            wait_for(lambda: states(0, 2), "Fresh source while on battery did not settle paused")
+            QTest.qWait(80)
+            assert states(0, 2), "Fresh source began playing while paused on battery"
+
+            # Reconnecting AC power: must resume playback
+            root.setProperty("batteryPluggedIn", True)
+            wait_for(lambda: states(0, 1), "Reconnecting power did not resume playback")
+
+            # Unplugging AC power: must pause playback again
+            root.setProperty("batteryPluggedIn", False)
+            wait_for(lambda: states(0, 2), "Unplugging power did not pause playback")
+
+            # Disabling PauseOnBattery while on battery: must resume playback
+            root.setProperty("configuration", {"PauseOnBattery": False})
+            wait_for(lambda: states(0, 1), "Disabling PauseOnBattery did not resume playback")
+
+            # Re-enable PauseOnBattery on a device without batteries: must stay playing
+            root.setProperty("configuration", {"PauseOnBattery": True})
+            root.setProperty("hasBatteries", False)
+            QTest.qWait(50)
+            assert states(0, 1), "PauseOnBattery paused on device reporting no battery"
+
             assert root.property("unexpectedAdvance") == 0, "Unexpected media error/advance"
     finally:
         sip.delete(root)

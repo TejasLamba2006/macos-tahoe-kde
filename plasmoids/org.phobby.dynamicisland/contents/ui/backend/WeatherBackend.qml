@@ -43,6 +43,7 @@ Item {
     property string raw: ""
     property var forecast: null
     property real fetchedAt: 0
+    property real lastAttemptAt: 0
     property bool loading: false
     // Why there is no (new) weather: "" | "offline" | "service"
     property string problem: ""
@@ -98,13 +99,20 @@ Item {
         const xhr = new XMLHttpRequest();
         xhr.onreadystatechange = () => { if (xhr.readyState === XMLHttpRequest.DONE) done(xhr.status, xhr.responseText || ""); };
         ++requests;
-        xhr.open("GET", url);
-        xhr.send();
+        try {
+            xhr.open("GET", url);
+            xhr.send();
+        } catch (e) {
+            done(0, "");
+        }
     }
     property int seq: 0
-    function refresh(): void {
-        if (!enabled || !hasPlace) return;
+    function refresh(force: bool): void {
+        if (!enabled || !hasPlace || loading) return;
+        // ponytail: 60s cooldown across all callers prevents retry storm on error
+        if (!force && lastAttemptAt > 0 && now() - lastAttemptAt < 60000) return;
         const run = ++seq;
+        lastAttemptAt = now();
         loading = true;
         get(WeatherData.forecastUrl(forecastBase, place.latitude, place.longitude), (status, text) => {
             if (run !== seq) return;
@@ -117,7 +125,7 @@ Item {
     // For the moment the page opens: ask now unless that just happened; the hour it is moves on either way.
     function refreshIfStale(): void {
         retime();
-        if (enabled && hasPlace && !loading && now() - fetchedAt > refreshMinutes * 60000) refresh();
+        if (enabled && hasPlace && now() - fetchedAt > refreshMinutes * 60000) refresh();
     }
     function retime(): void {
         if (raw.length === 0) return;
@@ -126,7 +134,7 @@ Item {
     }
     // Another place: what was known is of the old one.
     readonly property string placeKey: place !== null ? place.latitude + "," + place.longitude : ""
-    onPlaceKeyChanged: { ++seq; raw = ""; forecast = null; fetchedAt = 0; problem = ""; loading = false; refresh(); }
+    onPlaceKeyChanged: { ++seq; raw = ""; forecast = null; fetchedAt = 0; lastAttemptAt = 0; problem = ""; loading = false; refresh(true); }
     onEnabledChanged: refreshIfStale()
     Timer {
         interval: Math.max(15, weather.refreshMinutes) * 60000

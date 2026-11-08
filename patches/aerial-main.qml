@@ -7,6 +7,7 @@ import QtMultimedia
 import org.kde.plasma.plasmoid
 import org.kde.plasma.wallpaper.aerial 1.0
 import org.kde.plasma.wallpapers.image as PlasmaWallpaper
+import org.kde.plasma.private.battery as Battery
 import org.kde.kwindowsystem
 
 WallpaperItem {
@@ -19,12 +20,18 @@ WallpaperItem {
         regionGeometry: root.desktopRect
     }
 
+    Battery.BatteryControlModel {
+        id: battery
+    }
+
     // Reuse the native image wallpaper's per-screen coverage rule.
     readonly property bool isCovered: activeWindowMonitor.count > 0 && !KWindowSystem.showingDesktop
+    readonly property bool pauseOnBattery: Boolean(root.configuration && root.configuration.PauseOnBattery && battery.hasBatteries && !battery.pluggedIn)
+    readonly property bool shouldPause: isCovered || pauseOnBattery
 
-    onIsCoveredChanged: {
+    onShouldPauseChanged: {
         const current = root.activePlayer === 0 ? playerA : playerB;
-        if (root.isCovered) {
+        if (root.shouldPause) {
             if (current.playbackState === MediaPlayer.PlayingState) {
                 current.pause();
             }
@@ -90,7 +97,7 @@ WallpaperItem {
         const prev = root.activePlayer === 0 ? playerA : playerB;
         const inactive = root.activePlayer === 0 ? playerB : playerA;
         inactive.source = source;
-        if (root.isCovered) {
+        if (root.shouldPause) {
             inactive.pause();
         } else {
             inactive.play();

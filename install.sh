@@ -49,6 +49,9 @@ mkdir -p "$USER_HOME/.local/share/plasma/desktoptheme" "$USER_HOME/.local/share/
 cp -r "$REPO_DIR/themes/MacTahoe-Dark" "$USER_HOME/.local/share/plasma/desktoptheme/"
 cp -r "$REPO_DIR/themes/WhiteSur-dark-opaque" "$USER_HOME/.local/share/aurorae/themes/"
 cp "$REPO_DIR/themes/MacTahoeDark.colors" "$USER_HOME/.local/share/color-schemes/"
+if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+    plasma-apply-colorscheme MacTahoeDark || echo "Warning: failed to apply MacTahoeDark color scheme" >&2
+fi
 
 echo "==> Installing macOS Lock Screen & Logout Shell Overrides..."
 SHELL_DIR="$USER_HOME/.local/share/plasma/shells/org.kde.plasma.desktop"
@@ -142,6 +145,12 @@ if [ -d /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui ];
     tmp="/tmp/aerial-main.qml"
     apply_template "$REPO_DIR/patches/aerial-main.qml" "$tmp"
     sudo mv "$tmp" /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui/main.qml
+    if [ -f "$REPO_DIR/patches/aerial-config.qml" ]; then
+        sudo cp "$REPO_DIR/patches/aerial-config.qml" /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui/config.qml
+    fi
+    if [ -f "$REPO_DIR/patches/aerial-main.xml" ]; then
+        sudo cp "$REPO_DIR/patches/aerial-main.xml" /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/config/main.xml
+    fi
     sudo "$REPO_DIR/patches/patch-aerial-core.py"
 fi
 
