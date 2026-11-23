@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+"""macOS Force Quit Applications window (Meta+Alt+Esc / Apple Menu)."""
+import configparser
+import glob
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from PyQt6.QtCore import QSize, Qt, QTimer
+from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+SOCKET_NAME = f"macos-force-quit-{os.getuid()}"
+SYSTEM_EXEMPT = {
+    "systemd",
+    "dbus-broker",
+    "dbus-broker-launch",
+    "kwin_wayland",
+    "kwin_wayland_wrapper",
+    "plasmashell",
+    "kded6",
+    "ksmserver",
+    "kglobalacceld",
+    "pipewire",
+    "pipewire-pulse",
+    "wireplumber",
+    "Xwayland",
+    "polkit-kde-authentication-agent-1",
+    "org_kde_powerdevil",
+    "xdg-desktop-portal",
+    "xdg-desktop-portal-kde",
+    "xdg-desktop-portal-gtk",
+    "xdg-document-portal",
+    "xdg-permission-store",
+    "at-spi-bus-launcher",
+    "at-spi2-registryd",
+    "dconf-service",
+    "kwalletd6",
+    "kactivitymanagerd",
+    "ksystemstats",
+    "knighttimed",
+    "gmenudbusmenuproxy",
+    "xembedsniproxy",
+    "kaccess",
+    "akonadi_control",
+    "akonadiserver",
+    "mysqld",
+    "mariadbd",
+    "macos-force-quit",
+}
+
+
+def build_desktop_index() -> dict[str, tuple[str, str]]:
+    idx: dict[str, tuple[str, str]] = {}
+    dirs = [
+        Path.home() / ".local/share/applications",
+        Path("/usr/share/applications"),
+        Path("/var/lib/flatpak/exports/share/applications"),
+    ]
+    for d in dirs:
+        if not d.is_dir():
+            continue
+        for f in d.glob("*.desktop"):
+            cp = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                cp.read(f, encoding="utf-8")
+            except Exception:
+                continue
+            if "Desktop Entry" not in cp:
+                continue
+            sec = cp["Desktop Entry"]
+            if sec.get("NoDisplay", "false").lower() == "true":
+                continue
+            name = sec.get("Name", "").strip()
+            icon = sec.get("Icon", "application-x-executable").strip()
+            exec_cmd = sec.get("Exec", "").strip().split()
+            bin_name = Path(exec_cmd[0]).name.lower() if exec_cmd else ""
+            stem = f.stem.lower()
+            wmclass = sec.get("StartupWMClass", "").strip().lower()
+            if name:
+                for key in (stem, stem.split(".")[-1], bin_name, wmclass):
+                    if key and key not in idx:
+                        idx[key] = (name, icon)
+    return idx
+
+
+def discover_user_apps(desktop_idx: dict[str, tuple[str, str]]) -> list[tuple[str, str, list[int], int]]:
+    uid = os.getuid()
+    my_pid = os.getpid()
+    groups: dict[str, tuple[str, str, list[int], int]] = {}
+
+    for proc_dir in glob.glob("/proc/[0-9]*"):
+        pid = int(proc_dir.rsplit("/", 1)[1])
+        if pid == my_pid:
+            continue
+        try:
+            st = os.stat(proc_dir)
+            if st.st_uid != uid:
+                continue
+            status = Path(f"{proc_dir}/status").read_text(errors="replace")
+            exe_target = Path(os.readlink(f"{proc_dir}/exe")).name
+        except OSError:
+            continue
+
+        fields = {}
+        for line in status.splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                fields[k.strip()] = v.strip()
+
+        comm = fields.get("Name", "")
+        if not comm or comm in SYSTEM_EXEMPT or exe_target in SYSTEM_EXEMPT:
+            continue
+        if comm.startswith(("akonadi_", "gvfs", "ibus", "fcitx", "Isolated Web", "Web Content", "Socket Process", "Utility Process", "RDD Process", "Privileged Cont")):
+            continue
+
+        exe0 = exe_target or comm
+        if exe0 in ("bash", "zsh", "fish", "sh", "python3", "python", "python3.14", "node", "sleep", "cat", "pw-dump", "git", "rg", "ugrep", "cargo", "rustc", "cc1", "cc1plus", "ld.lld"):
+            continue
+
+        rss_kb = int(fields.get("VmRSS", "0 kB").split()[0])
+        key = exe0.lower()
+        for prefix, mapped in (
+            ("google-chrome", "google-chrome"),
+            ("chrome", "google-chrome"),
+            ("chromium", "chromium"),
+            ("firefox", "firefox"),
+            ("discord", "discord"),
+            ("open-whispr", "openwhispr"),
+            ("9remote", "9remote"),
+            ("code", "code"),
+            ("konsole", "org.kde.konsole"),
+            ("dolphin", "org.kde.dolphin"),
+            ("spotify", "spotify-launcher"),
+            ("vicinae", "vicinae"),
+            ("fdm", "fdm"),
+            ("warp-taskbar", "com.cloudflare.warp"),
+        ):
+            if prefix in key or prefix in comm.lower():
+                key = mapped
+                break
+
+        meta = desktop_idx.get(key) or desktop_idx.get(comm.lower())
+        if not meta and rss_kb < 35000:
+            continue
+
+        title, icon = meta if meta else (exe0.split()[0].capitalize(), key)
+        prev = groups.get(title)
+        if prev is None:
+            groups[title] = (title, icon, [pid], rss_kb)
+        else:
+            prev[2].append(pid)
+            groups[title] = (title, icon, prev[2], prev[3] + rss_kb)
+
+    return sorted(groups.values(), key=lambda item: item[0].lower())
+
+
+class ForceQuitDialog(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.desktop_idx = build_desktop_index()
+        self.setWindowTitle("Force Quit Applications")
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.resize(420, 440)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        card = QFrame(self)
+        card.setObjectName("fqCard")
+        card.setStyleSheet("""
+            QFrame#fqCard {
+                background-color: rgba(28, 28, 30, 244);
+                border: 1px solid rgba(255, 255, 255, 42);
+                border-radius: 16px;
+            }
+            QLabel { color: #FFFFFF; font-family: "SF Pro Text"; }
+            QListWidget {
+                background-color: rgba(18, 18, 20, 200);
+                border: 1px solid rgba(255, 255, 255, 24);
+                border-radius: 10px;
+                padding: 4px;
+                color: #FFFFFF;
+                font-family: "SF Pro Text";
+                font-size: 13px;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 7px 10px;
+                border-radius: 7px;
+            }
+            QListWidget::item:selected {
+                background-color: #0A84FF;
+                color: #FFFFFF;
+            }
+            QPushButton#cancelBtn {
+                background-color: rgba(255, 255, 255, 22);
+                color: #FFFFFF;
+                border: 1px solid rgba(255, 255, 255, 30);
+                border-radius: 7px;
+                padding: 6px 14px;
+                font-size: 12px;
+            }
+            QPushButton#quitBtn {
+                background-color: #FF453A;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 7px;
+                padding: 6px 16px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton#quitBtn:disabled {
+                background-color: rgba(255, 69, 58, 90);
+                color: rgba(255, 255, 255, 130);
+            }
+        """)
+        outer.addWidget(card)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 14, 18, 16)
+        layout.setSpacing(10)
+
+        hdr = QHBoxLayout()
+        close_btn = QPushButton("✕")
+        close_btn.setObjectName("cancelBtn")
+        close_btn.setFixedSize(26, 26)
+        close_btn.clicked.connect(self.close)
+        hdr.addWidget(close_btn)
+
+        title = QLabel("Force Quit Applications")
+        title.setStyleSheet("font-size: 14px; font-weight: 600;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr.addWidget(title, 1)
+        hdr.addSpacing(26)
+        layout.addLayout(hdr)
+
+        sub = QLabel("If an app doesn’t respond for a while, select its name and click Force Quit.")
+        sub.setWordWrap(True)
+        sub.setStyleSheet("font-size: 11px; color: rgba(255, 255, 255, 170);")
+        layout.addWidget(sub)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setIconSize(QSize(28, 28))
+        layout.addWidget(self.list_widget, 1)
+
+        footer = QHBoxLayout()
+        sysmon_btn = QPushButton("Activity Monitor…")
+        sysmon_btn.setObjectName("cancelBtn")
+        sysmon_btn.clicked.connect(self.open_activity_monitor)
+        footer.addWidget(sysmon_btn)
+        footer.addStretch()
+
+        self.force_btn = QPushButton("Force Quit")
+        self.force_btn.setObjectName("quitBtn")
+        self.force_btn.clicked.connect(self.force_quit_selected)
+        footer.addWidget(self.force_btn)
+        layout.addLayout(footer)
+
+        QShortcut(QKeySequence(Qt.Key.Key_Escape), self).activated.connect(self.close)
+        QShortcut(QKeySequence(Qt.Key.Key_Return), self).activated.connect(self.force_quit_selected)
+
+        self.refresh_apps()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_apps)
+        self.timer.start(3000)
+
+    def refresh_apps(self):
+        selected_title = None
+        cur = self.list_widget.currentItem()
+        if cur:
+            selected_title = cur.data(Qt.ItemDataRole.UserRole + 1)
+
+        apps = discover_user_apps(self.desktop_idx)
+        self.list_widget.clear()
+        restore_row = 0
+        for idx, (title, icon_name, pids, _rss) in enumerate(apps):
+            icon = QIcon.fromTheme(icon_name)
+            if icon.isNull():
+                icon = QIcon.fromTheme("application-x-executable")
+            item = QListWidgetItem(icon, title)
+            item.setData(Qt.ItemDataRole.UserRole, pids)
+            item.setData(Qt.ItemDataRole.UserRole + 1, title)
+            self.list_widget.addItem(item)
+            if title == selected_title:
+                restore_row = idx
+
+        if self.list_widget.count() > 0:
+            self.list_widget.setCurrentRow(restore_row)
+            self.force_btn.setEnabled(True)
+        else:
+            self.force_btn.setEnabled(False)
+
+    def open_activity_monitor(self):
+        subprocess.Popen(
+            ["plasma-systemmonitor"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        self.close()
+
+    def force_quit_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        pids: list[int] = item.data(Qt.ItemDataRole.UserRole) or []
+        title = item.data(Qt.ItemDataRole.UserRole + 1) or "Application"
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+        time.sleep(0.25)
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        island = Path.home() / ".local/bin/island-push"
+        if island.is_file():
+            subprocess.Popen(
+                [str(island), "--flash", "--title", f"Force Quit {title}", "--icon", "process-stop", "--color", "red", "--duration", "2000"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        self.refresh_apps()
+
+
+def main() -> int:
+    sock = QLocalSocket()
+    sock.connectToServer(SOCKET_NAME)
+    if sock.waitForConnected(120):
+        sock.write(b"CLOSE\n")
+        sock.flush()
+        sock.waitForBytesWritten(100)
+        return 0
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("macos-force-quit")
+    app.setDesktopFileName("macos-force-quit")
+
+    QLocalServer.removeServer(SOCKET_NAME)
+    server = QLocalServer(app)
+    server.listen(SOCKET_NAME)
+
+    dlg = ForceQuitDialog()
+
+    def on_conn():
+        conn = server.nextPendingConnection()
+        if conn:
+            conn.waitForReadyRead(100)
+            dlg.close()
+            app.quit()
+
+    server.newConnection.connect(on_conn)
+    dlg.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

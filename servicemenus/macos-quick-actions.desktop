@@ -1,0 +1,53 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=all/all;
+Actions=ConvertPNG;ConvertJPG;ConvertWebP;RotateLeft;RotateRight;CreatePDF;ExtractMP3;SendToPhone;CopyPath;
+X-KDE-Submenu=Quick Actions
+X-KDE-Priority=TopLevel
+X-KDE-StartupNotify=false
+
+[Desktop Action ConvertPNG]
+Name=Convert Image to PNG
+Icon=image-png
+Exec=@HOME@/.local/bin/macos-quick-action convert-png %F
+
+[Desktop Action ConvertJPG]
+Name=Convert Image to JPEG
+Icon=image-jpeg
+Exec=@HOME@/.local/bin/macos-quick-action convert-jpg %F
+
+[Desktop Action ConvertWebP]
+Name=Convert Image to WebP
+Icon=image-webp
+Exec=@HOME@/.local/bin/macos-quick-action convert-webp %F
+
+[Desktop Action RotateLeft]
+Name=Rotate Image Left (90°)
+Icon=object-rotate-left
+Exec=@HOME@/.local/bin/macos-quick-action rotate-left %F
+
+[Desktop Action RotateRight]
+Name=Rotate Image Right (90°)
+Icon=object-rotate-right
+Exec=@HOME@/.local/bin/macos-quick-action rotate-right %F
+
+[Desktop Action CreatePDF]
+Name=Create PDF from Selection
+Icon=application-pdf
+Exec=@HOME@/.local/bin/macos-quick-action create-pdf %F
+
+[Desktop Action ExtractMP3]
+Name=Extract Audio as MP3
+Icon=audio-mp3
+Exec=@HOME@/.local/bin/macos-quick-action extract-mp3 %F
+
+[Desktop Action SendToPhone]
+Name=Send to Phone (Handoff)
+Icon=smartphone
+Exec=@HOME@/.local/bin/macos-quick-action send-phone %F
+
+[Desktop Action CopyPath]
+Name=Copy as Pathname
+Icon=edit-copy-path
+Exec=@HOME@/.local/bin/macos-quick-action copy-path %F

@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/qt/qml/plasma/applet/org/kde/plasma/taskmanager">
+        <file alias="Task.qml">Task.qml</file>
+        <file alias="TaskList.qml">TaskList.qml</file>
+        <file alias="Magnification.js">Magnification.js</file>
+    </qresource>
+</RCC>

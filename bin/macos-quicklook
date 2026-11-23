@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""macOS Quick Look previewer for KDE Plasma Wayland (Images, PDF, Video, Audio, Text)."""
+import mimetypes
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QMimeDatabase, QSize, Qt, QUrl
+from PyQt6.QtGui import QFont, QImageReader, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PyQt6.QtPdf import QPdfDocument
+from PyQt6.QtPdfWidgets import QPdfView
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+SOCKET_NAME = f"macos-quicklook-{os.getuid()}"
+MAX_TEXT_BYTES = 2 * 1024 * 1024
+
+
+def human_size(num: float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if num < 1024 or unit == "TB":
+            return f"{num:.1f} {unit}" if unit != "B" else f"{int(num)} B"
+        num /= 1024
+    return f"{num:.1f} TB"
+
+
+class QuickLookWindow(QWidget):
+    def __init__(self, files: list[Path]):
+        super().__init__()
+        self.files = files
+        self.idx = 0
+        self.mime_db = QMimeDatabase()
+
+        self.setObjectName("macosQuickLook")
+        self.setWindowTitle("Quick Look")
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.resize(920, 660)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        card = QFrame(self)
+        card.setObjectName("qlCard")
+        card.setStyleSheet("""
+            QFrame#qlCard {
+                background-color: rgba(28, 28, 30, 242);
+                border: 1px solid rgba(255, 255, 255, 42);
+                border-radius: 16px;
+            }
+            QLabel { color: #FFFFFF; font-family: "SF Pro Text"; }
+            QPushButton {
+                background-color: rgba(255, 255, 255, 24);
+                color: #FFFFFF;
+                border: 1px solid rgba(255, 255, 255, 32);
+                border-radius: 7px;
+                padding: 4px 12px;
+                font-family: "SF Pro Text";
+                font-size: 12px;
+            }
+            QPushButton:hover { background-color: rgba(255, 255, 255, 42); }
+            QPlainTextEdit {
+                background-color: rgba(18, 18, 20, 220);
+                color: #F2F2F7;
+                border: none;
+                border-radius: 10px;
+                padding: 10px;
+            }
+        """)
+        outer.addWidget(card)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 12, 16, 14)
+        layout.setSpacing(10)
+
+        # Header bar
+        header = QHBoxLayout()
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(26, 26)
+        close_btn.clicked.connect(self.close)
+        header.addWidget(close_btn)
+
+        self.title_lbl = QLabel("")
+        self.title_lbl.setStyleSheet("font-size: 13px; font-weight: 600;")
+        self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        header.addWidget(self.title_lbl)
+
+        open_btn = QPushButton("Open")
+        open_btn.clicked.connect(self.open_default)
+        header.addWidget(open_btn)
+        layout.addLayout(header)
+
+        # Content stack
+        self.stack = QStackedWidget()
+        layout.addWidget(self.stack, 1)
+
+        # 0: Image view
+        self.image_lbl = QLabel()
+        self.image_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.stack.addWidget(self.image_lbl)
+
+        # 1: PDF view
+        self.pdf_doc = QPdfDocument(self)
+        self.pdf_view = QPdfView(self)
+        self.pdf_view.setDocument(self.pdf_doc)
+        self.pdf_view.setPageMode(QPdfView.PageMode.MultiPage)
+        self.pdf_view.setZoomMode(QPdfView.ZoomMode.FitInView)
+        self.stack.addWidget(self.pdf_view)
+
+        # 2: Video / Audio view
+        media_wrap = QWidget()
+        media_layout = QVBoxLayout(media_wrap)
+        media_layout.setContentsMargins(0, 0, 0, 0)
+        self.video_widget = QVideoWidget()
+        media_layout.addWidget(self.video_widget, 1)
+        ctrl_row = QHBoxLayout()
+        self.play_btn = QPushButton("Pause")
+        self.play_btn.clicked.connect(self.toggle_media)
+        ctrl_row.addStretch()
+        ctrl_row.addWidget(self.play_btn)
+        ctrl_row.addStretch()
+        media_layout.addLayout(ctrl_row)
+        self.stack.addWidget(media_wrap)
+
+        self.audio_out = QAudioOutput(self)
+        self.player = QMediaPlayer(self)
+        self.player.setAudioOutput(self.audio_out)
+        self.player.setVideoOutput(self.video_widget)
+
+        # 3: Plain text / code view
+        self.text_edit = QPlainTextEdit()
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setFont(QFont("SF Mono", 11))
+        self.stack.addWidget(self.text_edit)
+
+        # 4: Metadata / directory fallback
+        self.info_lbl = QLabel()
+        self.info_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_lbl.setStyleSheet("font-size: 14px; color: rgba(255,255,255,210);")
+        self.stack.addWidget(self.info_lbl)
+
+        for key in (Qt.Key.Key_Space, Qt.Key.Key_Escape, Qt.Key.Key_Q):
+            sc = QShortcut(QKeySequence(key), self)
+            sc.activated.connect(self.close)
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(lambda: self.step(1))
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(lambda: self.step(-1))
+
+        self.show_current()
+
+    def toggle_media(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.pause()
+            self.play_btn.setText("Play")
+        else:
+            self.player.play()
+            self.play_btn.setText("Pause")
+
+    def open_default(self):
+        if self.files:
+            subprocess.Popen(
+                ["xdg-open", str(self.files[self.idx])],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            self.close()
+
+    def step(self, delta: int):
+        if len(self.files) <= 1:
+            return
+        self.idx = (self.idx + delta) % len(self.files)
+        self.show_current()
+
+    def show_current(self):
+        self.player.stop()
+        path = self.files[self.idx]
+        counter = f" ({self.idx + 1}/{len(self.files)})" if len(self.files) > 1 else ""
+        self.title_lbl.setText(f"{path.name}{counter}")
+
+        if not path.exists():
+            self.info_lbl.setText(f"{path}\n\nFile not found.")
+            self.stack.setCurrentIndex(4)
+            return
+
+        if path.is_dir():
+            try:
+                count = sum(1 for _ in path.iterdir())
+            except OSError:
+                count = 0
+            self.info_lbl.setText(f"📁  {path.name}\n\nFolder · {count} items\n{path}")
+            self.stack.setCurrentIndex(4)
+            return
+
+        mime = self.mime_db.mimeTypeForFile(str(path)).name()
+        stat = path.stat()
+
+        if mime.startswith("image/"):
+            reader = QImageReader(str(path))
+            reader.setAutoTransform(True)
+            img = reader.read()
+            if not img.isNull():
+                pix = QPixmap.fromImage(img).scaled(
+                    QSize(860, 560),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.image_lbl.setPixmap(pix)
+                self.stack.setCurrentIndex(0)
+                return
+
+        if mime == "application/pdf" or path.suffix.lower() == ".pdf":
+            self.pdf_doc.load(str(path))
+            self.stack.setCurrentIndex(1)
+            return
+
+        if mime.startswith(("video/", "audio/")):
+            self.player.setSource(QUrl.fromLocalFile(str(path)))
+            self.player.play()
+            self.play_btn.setText("Pause")
+            self.stack.setCurrentIndex(2)
+            return
+
+        if mime.startswith("text/") or mime in (
+            "application/json",
+            "application/xml",
+            "application/javascript",
+            "application/x-shellscript",
+            "application/x-yaml",
+            "application/toml",
+        ) or path.suffix.lower() in {".md", ".py", ".rs", ".ts", ".tsx", ".js", ".qml", ".sh", ".toml", ".yaml", ".yml", ".json", ".log", ".conf", ".ini"}:
+            try:
+                raw = path.read_bytes()[:MAX_TEXT_BYTES]
+                self.text_edit.setPlainText(raw.decode("utf-8", errors="replace"))
+                self.stack.setCurrentIndex(3)
+                return
+            except OSError:
+                pass
+
+        self.info_lbl.setText(
+            f"📄  {path.name}\n\nType: {mime}\nSize: {human_size(stat.st_size)}\nPath: {path}"
+        )
+        self.stack.setCurrentIndex(4)
+
+
+def resolve_inputs(argv: list[str]) -> list[Path]:
+    paths = [Path(p).expanduser().resolve() for p in argv if p.strip()]
+    if paths:
+        return paths
+    try:
+        clip = subprocess.check_output(
+            ["wl-paste", "--no-newline", "--type", "text/uri-list"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=0.5,
+        )
+        for line in clip.splitlines():
+            line = line.strip()
+            if line.startswith("file://"):
+                p = Path(QUrl(line).toLocalFile())
+                if p.exists():
+                    paths.append(p)
+    except Exception:
+        pass
+    return paths
+
+
+def main() -> int:
+    # Toggle off if already open
+    sock = QLocalSocket()
+    sock.connectToServer(SOCKET_NAME)
+    if sock.waitForConnected(120):
+        sock.write(b"CLOSE\n")
+        sock.flush()
+        sock.waitForBytesWritten(100)
+        return 0
+
+    files = resolve_inputs(sys.argv[1:])
+    if not files:
+        return 0
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("macos-quicklook")
+    app.setDesktopFileName("macos-quicklook")
+
+    QLocalServer.removeServer(SOCKET_NAME)
+    server = QLocalServer(app)
+    server.listen(SOCKET_NAME)
+
+    win = QuickLookWindow(files)
+
+    def on_conn():
+        conn = server.nextPendingConnection()
+        if conn:
+            conn.waitForReadyRead(100)
+            win.close()
+            app.quit()
+
+    server.newConnection.connect(on_conn)
+    win.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -30,13 +30,30 @@ if [ -d "$REPO_DIR/bin/three-finger-gestures" ]; then
     cp -r "$REPO_DIR"/bin/three-finger-gestures/* "$USER_HOME/.local/share/three-finger-gestures/"
 fi
 
-echo "==> Installing Vicinae launcher shortcut..."
-mkdir -p "$USER_HOME/.local/share/applications"
-install -m 755 "$REPO_DIR/applications/vicinae-applications.desktop" \
-    "$USER_HOME/.local/share/applications/vicinae-applications.desktop"
+echo "==> Installing Vicinae & macOS desktop shortcuts + Dolphin service menus..."
+mkdir -p "$USER_HOME/.local/share/applications" "$USER_HOME/.local/share/dbus-1/services" "$USER_HOME/.local/share/kio/servicemenus"
+rm -f "$USER_HOME/.local/share/applications/org.kde.krunner.desktop"
+cat > "$USER_HOME/.local/share/dbus-1/services/org.kde.krunner.service" <<EOF
+[D-BUS Service]
+Name=org.kde.krunner
+Exec=$USER_HOME/.local/bin/krunner-dbus-bridge.py
+SystemdService=plasma-krunner.service
+EOF
+for app_entry in "$REPO_DIR"/applications/*.desktop; do
+    [ -f "$app_entry" ] || continue
+    dst="$USER_HOME/.local/share/applications/$(basename "$app_entry")"
+    apply_template "$app_entry" "$dst"
+    chmod 755 "$dst"
+done
+for svc_menu in "$REPO_DIR"/servicemenus/*.desktop; do
+    [ -f "$svc_menu" ] || continue
+    dst="$USER_HOME/.local/share/kio/servicemenus/$(basename "$svc_menu")"
+    apply_template "$svc_menu" "$dst"
+    chmod 755 "$dst"
+done
 update-desktop-database "$USER_HOME/.local/share/applications" 2>/dev/null || true
 kbuildsycoca6 2>/dev/null || true
-# X-KDE-Shortcuts in the desktop entry registers Alt+Space with KGlobalAccel.
+# X-KDE-Shortcuts in vicinae-applications.desktop registers Alt+Space with KGlobalAccel.
 # Keep KRunner D-Bus bridge and clipboard action intact.
 
 echo "==> Installing custom & patched macOS Plasmoids..."
@@ -67,13 +84,16 @@ for f in Logout.qml LogoutControls.qml LogoutButton.qml; do
 done
 
 echo "==> Installing KWin scripts, rules, Konsole/Yakuake profiles, EasyEffects presets, Sound theme & WhatsApp extension..."
-mkdir -p "$USER_HOME/.local/share/kwin/scripts"
-cp -r "$REPO_DIR/kwin/chrome-pip-top" "$USER_HOME/.local/share/kwin/scripts/"
+mkdir -p "$USER_HOME/.local/share/kwin/scripts" "$USER_HOME/.local/share/kwin/tabbox"
+cp -r "$REPO_DIR/kwin/chrome-pip-top" "$REPO_DIR/kwin/macos-stealth-window" "$USER_HOME/.local/share/kwin/scripts/"
+cp -r "$REPO_DIR/kwin/tabbox/macos-app-switcher" "$USER_HOME/.local/share/kwin/tabbox/"
 cp "$REPO_DIR/kwin/kwinrulesrc" "$USER_HOME/.config/kwinrulesrc"
 
-mkdir -p "$USER_HOME/.local/share/konsole"
+mkdir -p "$USER_HOME/.local/share/konsole" "$USER_HOME/.config/fontconfig"
 cp "$REPO_DIR/konsole/macOS.profile" "$REPO_DIR/konsole/macOS.colorscheme" "$USER_HOME/.local/share/konsole/"
 cp "$REPO_DIR/konsole/yakuakerc" "$USER_HOME/.config/yakuakerc"
+cp "$REPO_DIR/fontconfig/fonts.conf" "$USER_HOME/.config/fontconfig/fonts.conf"
+fc-cache -f 2>/dev/null || true
 
 mkdir -p "$USER_HOME/.local/share/easyeffects/output"
 cp "$REPO_DIR"/easyeffects/*.json "$USER_HOME/.local/share/easyeffects/output/"
@@ -95,6 +115,11 @@ kwriteconfig6 --file kwinrc --group "Plugins" --key "kwin4_effect_shapecornersEn
 kwriteconfig6 --file kwinrc --group "Plugins" --key "magiclampEnabled" "true"
 kwriteconfig6 --file kwinrc --group "Plugins" --key "shakecursorEnabled" "true"
 kwriteconfig6 --file kwinrc --group "Plugins" --key "chrome-pip-topEnabled" "true"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "macos-stealth-windowEnabled" "true"
+kwriteconfig6 --file kwinrc --group "TabBox" --key "LayoutName" "macos-app-switcher"
+kwriteconfig6 --file kwinrc --group "TabBox" --key "ApplicationsMode" "1"
+kwriteconfig6 --file kwinrc --group "TabBox" --key "HighlightWindows" "false"
+kwriteconfig6 --file spectaclerc --group "General" --key "ocrLanguages" "eng,hin"
 kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurDocks" "true"
 kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurMenus" "true"
 kwriteconfig6 --file kwinrc --group "Effect-better-blur-dx" --key "BlurDecorations" "true"
@@ -121,7 +146,8 @@ mkdir -p "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d" "$USER_H
 cp "$REPO_DIR/systemd/plasma-plasmashell.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-plasmashell.service.d/"
 cp "$REPO_DIR/systemd/plasma-kwin_wayland.service.d/limit-nofile.conf" "$USER_HOME/.config/systemd/user/plasma-kwin_wayland.service.d/"
 systemctl --user daemon-reload
-systemctl --user enable --now macos-multiscreen-dock.service macos-screenshare-privacy.service macos-handoff.service google-ical-sync.timer
+systemctl --user enable plasma-krunner.service macos-multiscreen-dock.service macos-screenshare-privacy.service macos-handoff.service three-finger-gestures.service google-ical-sync.timer
+systemctl --user restart plasma-krunner.service macos-multiscreen-dock.service macos-screenshare-privacy.service macos-handoff.service three-finger-gestures.service google-ical-sync.timer 2>/dev/null || true
 
 echo "==> Applying root-level patches (OSD pill, SDDM theme, Aerial binary patch, Network/DNS privacy)..."
 for osd_dir in /usr/lib/qt6/qml/org/kde/plasma/workspace/osd /usr/lib64/qt6/qml/org/kde/plasma/workspace/osd /usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/plasma/workspace/osd; do
@@ -129,6 +155,16 @@ for osd_dir in /usr/lib/qt6/qml/org/kde/plasma/workspace/osd /usr/lib64/qt6/qml/
         sudo cp "$REPO_DIR"/shell-overrides/osd/* "$osd_dir/"
     fi
 done
+sudo mkdir -p /usr/share/kwin/effects/macos-mission-control-v2
+sudo cp -r "$REPO_DIR"/kwin/macos-mission-control/contents "$REPO_DIR"/kwin/macos-mission-control/metadata.json /usr/share/kwin/effects/macos-mission-control-v2/
+kwriteconfig6 --file kwinrc --group "Plugins" --key "overviewEnabled" "false"
+kwriteconfig6 --file kwinrc --group "Plugins" --key "macos-mission-control-v2Enabled" "true"
+kwriteconfig6 --file kglobalshortcutsrc --group "kwin" --key "Overview" "none,Meta+W,Toggle Overview"
+kwriteconfig6 --file kglobalshortcutsrc --group "kwin" --key "MacOSMissionControl" "Meta+W,Meta+W,Toggle macOS Mission Control"
+qdbus6 org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel.unregister kwin Overview 2>/dev/null || true
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect overview 2>/dev/null || true
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect macos-mission-control-v2 2>/dev/null || true
+qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect macos-mission-control-v2 2>/dev/null || true
 sudo mkdir -p /usr/share/sddm/themes/macos-tahoe
 sudo cp -r /usr/share/sddm/themes/breeze/* /usr/share/sddm/themes/macos-tahoe/ 2>/dev/null || true
 for f in Main.qml Login.qml theme.conf; do
@@ -137,6 +173,7 @@ for f in Main.qml Login.qml theme.conf; do
     sudo mv "$tmp" "/usr/share/sddm/themes/macos-tahoe/$f"
 done
 sudo cp "$REPO_DIR/etc/00-macos-privacy.conf" /etc/NetworkManager/conf.d/
+sudo cp "$REPO_DIR/etc/rtw89-stability.conf" /etc/modprobe.d/rtw89-stability.conf
 sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 if [ -d /usr/share/plasma/wallpapers/io.github.birkneralex.aerial/contents/ui ]; then
     tmp="/tmp/aerial-main.qml"

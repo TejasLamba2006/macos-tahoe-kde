@@ -1,0 +1,63 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=inode/directory;
+Actions=ColorRed;ColorOrange;ColorYellow;ColorGreen;ColorCyan;ColorBlue;ColorViolet;ColorMagenta;ColorGrey;StampEmoji;ResetFolderIcon;
+X-KDE-Submenu=Folder Color & Emoji
+X-KDE-Priority=TopLevel
+X-KDE-StartupNotify=false
+
+[Desktop Action ColorRed]
+Name=Red
+Icon=folder-red
+Exec=@HOME@/.local/bin/macos-folder-badge red %F
+
+[Desktop Action ColorOrange]
+Name=Orange
+Icon=folder-orange
+Exec=@HOME@/.local/bin/macos-folder-badge orange %F
+
+[Desktop Action ColorYellow]
+Name=Yellow
+Icon=folder-yellow
+Exec=@HOME@/.local/bin/macos-folder-badge yellow %F
+
+[Desktop Action ColorGreen]
+Name=Green
+Icon=folder-green
+Exec=@HOME@/.local/bin/macos-folder-badge green %F
+
+[Desktop Action ColorCyan]
+Name=Cyan
+Icon=folder-cyan
+Exec=@HOME@/.local/bin/macos-folder-badge cyan %F
+
+[Desktop Action ColorBlue]
+Name=Blue
+Icon=folder-blue
+Exec=@HOME@/.local/bin/macos-folder-badge blue %F
+
+[Desktop Action ColorViolet]
+Name=Purple / Violet
+Icon=folder-violet
+Exec=@HOME@/.local/bin/macos-folder-badge violet %F
+
+[Desktop Action ColorMagenta]
+Name=Pink / Magenta
+Icon=folder-magenta
+Exec=@HOME@/.local/bin/macos-folder-badge magenta %F
+
+[Desktop Action ColorGrey]
+Name=Gray
+Icon=folder-grey
+Exec=@HOME@/.local/bin/macos-folder-badge grey %F
+
+[Desktop Action StampEmoji]
+Name=Stamp Emoji Badge…
+Icon=preferences-desktop-emoticons
+Exec=@HOME@/.local/bin/macos-folder-badge emoji %F
+
+[Desktop Action ResetFolderIcon]
+Name=Reset to Default Folder
+Icon=folder
+Exec=@HOME@/.local/bin/macos-folder-badge default %F

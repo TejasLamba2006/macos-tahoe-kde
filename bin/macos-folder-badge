@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""macOS Tahoe Colored Folders & Emoji Badge stamper for KDE Dolphin / Desktop."""
+import hashlib
+import subprocess
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtGui import QFont, QIcon, QImage, QPainter
+from PyQt6.QtWidgets import QApplication, QInputDialog
+
+VALID_COLORS = {
+    "red": "folder-red",
+    "orange": "folder-orange",
+    "yellow": "folder-yellow",
+    "green": "folder-green",
+    "cyan": "folder-cyan",
+    "blue": "folder-blue",
+    "violet": "folder-violet",
+    "magenta": "folder-magenta",
+    "grey": "folder-grey",
+    "brown": "folder-brown",
+}
+
+
+def set_folder_icon(folder: Path, icon_value: str | None) -> None:
+    dot_dir = folder / ".directory"
+    if icon_value is None:
+        subprocess.run(
+            ["kwriteconfig6", "--file", str(dot_dir), "--group", "Desktop Entry", "--key", "Icon", "--delete"],
+            check=False,
+        )
+        if dot_dir.exists() and not dot_dir.read_text().strip():
+            dot_dir.unlink(missing_ok=True)
+    else:
+        subprocess.run(
+            ["kwriteconfig6", "--file", str(dot_dir), "--group", "Desktop Entry", "--key", "Icon", icon_value],
+            check=True,
+        )
+
+
+def find_base_folder_svg() -> Path | None:
+    home = Path.home()
+    for rel in (
+        ".local/share/icons/MacTahoe-dark/places/scalable/folder-blue.svg",
+        ".local/share/icons/MacTahoe/places/scalable/folder-blue.svg",
+    ):
+        p = home / rel
+        if p.is_file():
+            return p
+    return None
+
+
+def render_emoji_folder(emoji: str) -> Path:
+    out_dir = Path.home() / ".local/share/macos-tahoe/folder-icons"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256(emoji.encode("utf-8")).hexdigest()[:12]
+    out_png = out_dir / f"folder-emoji-{digest}.png"
+
+    base_img = QImage(256, 256, QImage.Format.Format_ARGB32_Premultiplied)
+    base_img.fill(Qt.GlobalColor.transparent)
+
+    svg = find_base_folder_svg()
+    if svg:
+        pix = QIcon(str(svg)).pixmap(256, 256)
+    else:
+        pix = QIcon.fromTheme("folder").pixmap(256, 256)
+
+    painter = QPainter(base_img)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+    painter.drawPixmap(0, 0, pix)
+
+    font = QFont("Apple Color Emoji")
+    font.setPixelSize(92)
+    painter.setFont(font)
+    painter.drawText(QRectF(0, 42, 256, 184), Qt.AlignmentFlag.AlignCenter, emoji)
+    painter.end()
+
+    base_img.save(str(out_png), "PNG")
+    return out_png
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        return 0
+    mode = sys.argv[1]
+    folders = [Path(p).resolve() for p in sys.argv[2:] if Path(p).is_dir()]
+    if not folders:
+        return 0
+
+    if mode == "default":
+        for f in folders:
+            set_folder_icon(f, None)
+        return 0
+
+    if mode in VALID_COLORS:
+        icon_name = VALID_COLORS[mode]
+        for f in folders:
+            set_folder_icon(f, icon_name)
+        return 0
+
+    if mode == "emoji":
+        app = QApplication(sys.argv)
+        emoji, ok = QInputDialog.getText(
+            None,
+            "Folder Emoji Badge",
+            "Enter an emoji to stamp on the folder (e.g. 🚀, 💻, 🎨, 📚):",
+        )
+        emoji = (emoji or "").strip()
+        if not ok or not emoji:
+            return 0
+        icon_png = render_emoji_folder(emoji)
+        for f in folders:
+            set_folder_icon(f, str(icon_png))
+        return 0
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

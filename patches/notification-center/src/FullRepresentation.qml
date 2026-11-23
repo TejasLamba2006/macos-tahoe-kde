@@ -35,11 +35,11 @@ PlasmaExtras.Representation {
     required property PlasmaCore.Action clearHistoryAction
     required property NotificationManager.Notifications historyModel
 
-    Layout.minimumWidth: 360
+    Layout.minimumWidth: Kirigami.Units.gridUnit * 12
     Layout.minimumHeight: Kirigami.Units.gridUnit * 12
-    Layout.preferredWidth: 390
-    Layout.preferredHeight: 560
-    Layout.maximumWidth: 460
+    Layout.preferredWidth: Kirigami.Units.gridUnit * 18
+    Layout.preferredHeight: Kirigami.Units.gridUnit * 24
+    Layout.maximumWidth: Kirigami.Units.gridUnit * 80
     Layout.maximumHeight: Kirigami.Units.gridUnit * 40
 
     Layout.fillHeight: Plasmoid.formFactor === PlasmaCore.Types.Vertical
@@ -272,17 +272,9 @@ PlasmaExtras.Representation {
 
             topMargin: Kirigami.Units.largeSpacing
             bottomMargin: Kirigami.Units.largeSpacing
-            spacing: 10
+            spacing: Kirigami.Units.largeSpacing
 
             KeyNavigation.up: dndCheck
-
-            footer: Loader {
-                width: list.width
-                source: Qt.resolvedUrl("WidgetStack.qml")
-                active: fullRepresentationRoot.appletInterface.expanded
-                height: item ? item.implicitHeight : 0
-                onLoaded: item.width = Qt.binding(() => width)
-            }
 
             Keys.onDeletePressed: {
                 var idx = fullRepresentationRoot.historyModel.index(currentIndex, 0);
@@ -367,7 +359,7 @@ PlasmaExtras.Representation {
                         }
                         imagePath: "widgets/line"
                         elementId: "horizontal-line"
-                        visible: parent.y > 0
+                        visible: false
                     }
                 }
             }
@@ -607,9 +599,29 @@ PlasmaExtras.Representation {
                     }
                     Component {
                         id: notificationDelegate
-                        Delegates.DelegateHistory {
-                            Layout.fillWidth: true
-                            modelInterface: delegateLoader.modelInterface
+                        Item {
+                            implicitWidth: singleInner.implicitWidth + Kirigami.Units.largeSpacing * 2
+                            implicitHeight: singleInner.implicitHeight + Kirigami.Units.mediumSpacing * 2
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 14
+                                color: Qt.rgba(1, 1, 1, 0.08)
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.14)
+                            }
+
+                            Delegates.DelegateHistory {
+                                id: singleInner
+                                anchors {
+                                    fill: parent
+                                    leftMargin: Kirigami.Units.largeSpacing
+                                    rightMargin: Kirigami.Units.largeSpacing
+                                    topMargin: Kirigami.Units.mediumSpacing
+                                    bottomMargin: Kirigami.Units.mediumSpacing
+                                }
+                                modelInterface: delegateLoader.modelInterface
+                            }
                         }
                     }
                     Component {
@@ -617,9 +629,30 @@ PlasmaExtras.Representation {
                         ColumnLayout {
                             spacing: Kirigami.Units.smallSpacing
 
-                            Delegates.DelegateHistoryGrouped {
+                            Item {
                                 Layout.fillWidth: true
-                                modelInterface: delegateLoader.modelInterface
+                                implicitWidth: groupedInner.implicitWidth + Kirigami.Units.largeSpacing * 2
+                                implicitHeight: groupedInner.implicitHeight + Kirigami.Units.mediumSpacing * 2
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 14
+                                    color: Qt.rgba(1, 1, 1, 0.08)
+                                    border.width: 1
+                                    border.color: Qt.rgba(1, 1, 1, 0.14)
+                                }
+
+                                Delegates.DelegateHistoryGrouped {
+                                    id: groupedInner
+                                    anchors {
+                                        fill: parent
+                                        leftMargin: Kirigami.Units.largeSpacing
+                                        rightMargin: Kirigami.Units.largeSpacing
+                                        topMargin: Kirigami.Units.mediumSpacing
+                                        bottomMargin: Kirigami.Units.mediumSpacing
+                                    }
+                                    modelInterface: delegateLoader.modelInterface
+                                }
                             }
 
                             PlasmaComponents3.ToolButton {
@@ -640,7 +673,7 @@ PlasmaExtras.Representation {
                 anchors.centerIn: parent
                 width: parent.width - (Kirigami.Units.gridUnit * 4)
 
-                active: list.count === 0 && !list.footerItem
+                active: list.count === 0
                 visible: active
                 asynchronous: true
 

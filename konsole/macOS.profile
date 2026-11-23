@@ -3,6 +3,10 @@ ColorScheme=macOS
 Font=SF Mono,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 LineSpacing=2
 UseFontLineChararacters=true
+WordMode=true
+WordModeAscii=true
+WordModeBrahmic=true
+IgnoreWcWidth=false
 
 [Cursor Options]
 CursorShape=1
@@ -21,3 +25,6 @@ AutoCopySelectedText=true
 HistoryMode=1
 HistorySize=50000
 ScrollBarPosition=2
+
+[Terminal Features]
+BidiRenderingEnabled=true

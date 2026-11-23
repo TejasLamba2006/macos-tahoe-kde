@@ -6,9 +6,38 @@ import QtQuick
 import QtMultimedia
 import org.kde.plasma.plasmoid
 import org.kde.plasma.wallpaper.aerial 1.0
+import org.kde.plasma.wallpapers.image as PlasmaWallpaper
+import org.kde.plasma.private.battery as Battery
+import org.kde.kwindowsystem
 
 WallpaperItem {
     id: root
+
+    readonly property rect desktopRect: Window.window ? Qt.rect(Window.window.x, Window.window.y, Window.window.width, Window.window.height) : Qt.rect(0, 0, 0, 0)
+
+    PlasmaWallpaper.MaximizedWindowMonitor {
+        id: activeWindowMonitor
+        regionGeometry: root.desktopRect
+    }
+
+    Battery.BatteryControlModel {
+        id: battery
+    }
+
+    readonly property bool isCovered: activeWindowMonitor.count > 0 && !KWindowSystem.showingDesktop
+    readonly property bool onBattery: battery.hasBatteries && !battery.pluggedIn
+    readonly property bool shouldPause: isCovered || onBattery
+
+    onShouldPauseChanged: {
+        const current = root.activePlayer === 0 ? playerA : playerB;
+        if (root.shouldPause) {
+            if (current.playbackState === MediaPlayer.PlayingState) {
+                current.pause();
+            }
+        } else if (current.playbackState === MediaPlayer.PausedState) {
+            current.play();
+        }
+    }
 
     // Mirrors the TimeOfDay enum in contents/config/main.xml, and
     // `time_filter` in manifest.rs.
@@ -67,7 +96,11 @@ WallpaperItem {
         const prev = root.activePlayer === 0 ? playerA : playerB;
         const inactive = root.activePlayer === 0 ? playerB : playerA;
         inactive.source = source;
-        inactive.play();
+        if (root.shouldPause) {
+            inactive.pause();
+        } else {
+            inactive.play();
+        }
         root.activePlayer = root.activePlayer === 0 ? 1 : 0;
         root.loading = false;
         prev.stop();
@@ -302,11 +335,17 @@ WallpaperItem {
         manifest.refresh(root.configuration.Quality);
     }
 
-    Image {
+    // ponytail: unload 4K fallback bitmap once video frames load to save ~64 MiB RAM + ~64 MiB VRAM
+    Loader {
         anchors.fill: parent
-        source: "file://@HOME@/.local/share/wallpapers/MacTahoe/contents/images/3840x2160.jpeg"
-        fillMode: Image.PreserveAspectCrop
-        visible: root.loading || (playerA.playbackState !== MediaPlayer.PlayingState && playerB.playbackState !== MediaPlayer.PlayingState)
+        active: root.loading || (playerA.playbackState === MediaPlayer.StoppedState && playerB.playbackState === MediaPlayer.StoppedState)
+        sourceComponent: Image {
+            anchors.fill: parent
+            source: "file://@HOME@/.local/share/wallpapers/MacTahoe/contents/images/3840x2160.jpeg"
+            sourceSize: Qt.size(1920, 1080)
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
     }
 
     VideoOutput {
@@ -336,6 +375,15 @@ WallpaperItem {
     MediaPlayer {
         id: playerA
         videoOutput: videoOutputA
+        onPlaybackStateChanged: {
+            if (root.activePlayer === 0) {
+                if (root.shouldPause && playbackState === MediaPlayer.PlayingState) {
+                    pause();
+                } else if (!root.shouldPause && playbackState === MediaPlayer.PausedState) {
+                    play();
+                }
+            }
+        }
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia && root.activePlayer === 0) {
                 root.advance();
@@ -351,6 +399,15 @@ WallpaperItem {
     MediaPlayer {
         id: playerB
         videoOutput: videoOutputB
+        onPlaybackStateChanged: {
+            if (root.activePlayer === 1) {
+                if (root.shouldPause && playbackState === MediaPlayer.PlayingState) {
+                    pause();
+                } else if (!root.shouldPause && playbackState === MediaPlayer.PausedState) {
+                    play();
+                }
+            }
+        }
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia && root.activePlayer === 1) {
                 root.advance();

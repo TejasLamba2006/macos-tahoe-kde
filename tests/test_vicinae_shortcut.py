@@ -14,6 +14,12 @@ class VicinaeShortcutTests(unittest.TestCase):
         text = (ROOT / "install.sh").read_text()
         self.assertIn("vicinae-applications.desktop", text)
         self.assertIn("Alt+Space", text)
+        self.assertIn("org.kde.krunner.service", text)
+        self.assertIn("org.kde.krunner.desktop", text)
+
+    def test_krunner_service_avoids_graphical_session_cycle(self):
+        text = (ROOT / "systemd/plasma-krunner.service").read_text()
+        self.assertIn("After=graphical-session.target vicinae.service", text)
 
 
 if __name__ == "__main__":

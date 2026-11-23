@@ -24,7 +24,12 @@ def launch():
     )
 
 def clipboard():
-    subprocess.Popen(["/usr/bin/vicinae", "cmd", "launch", "clipboard:history"])
+    subprocess.Popen(
+        ["/usr/bin/vicinae", "cmd", "launch", "clipboard:history"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
 class KRunnerApp(dbus.service.Object):
     def __init__(self, bus, path):

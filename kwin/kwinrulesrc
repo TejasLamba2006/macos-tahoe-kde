@@ -1,5 +1,21 @@
 [General]
-Order=chrome-doc-pip,pip-always-on-top,konsole-opacity
+Order=chrome-doc-pip,pip-always-on-top,konsole-opacity,betternotes-stickies,macos-quicklook,macos-force-quit
+
+[betternotes-stickies]
+Description=BetterNotes Sticky Notes (Skip Taskbar & Hidden on Screen Share)
+excludefromcapture=true
+excludefromcapturerule=2
+skippager=true
+skippagerrule=2
+skipswitcher=true
+skipswitcherrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+types=512
+typesrule=2
+wmclass=betternotes
+wmclasscomplete=false
+wmclassmatch=1
 
 [chrome-doc-pip]
 Description=Chrome Document Picture-in-Picture (Google Meet / Web Apps) Always on Top
@@ -23,6 +39,36 @@ opacityinactive=88
 opacityinactiverule=2
 wmclass=konsole|yakuake
 wmclassmatch=3
+
+[macos-force-quit]
+Description=macOS Force Quit Applications Centered Floating Dialog
+above=true
+aboverule=2
+placement=4
+placementrule=2
+skippager=true
+skippagerrule=2
+skipswitcher=true
+skipswitcherrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+wmclass=python3|macos-force-quit
+wmclassmatch=3
+title=Force Quit Applications
+titlematch=1
+
+[macos-quicklook]
+Description=macOS Quick Look Centered Preview
+above=true
+aboverule=2
+placement=4
+placementrule=2
+skippager=true
+skippagerrule=2
+wmclass=python3|macos-quicklook
+wmclassmatch=3
+title=Quick Look
+titlematch=1
 
 [pip-always-on-top]
 Description=macOS Picture-in-Picture & Chrome Document PiP Always on Top

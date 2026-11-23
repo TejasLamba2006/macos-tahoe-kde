@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "KWin/WindowSwitcher",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "macOS Tahoe"
+            }
+        ],
+        "Description": "macOS Cmd+Tab large-icon centered frosted app switcher",
+        "Icon": "preferences-system-windows-switcher-big-icons",
+        "Id": "macos-app-switcher",
+        "License": "GPL-2.0-or-later",
+        "Name": "macOS App Switcher"
+    }
+}

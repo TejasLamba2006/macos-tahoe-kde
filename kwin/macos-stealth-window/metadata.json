@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "macOS Tahoe"
+            }
+        ],
+        "Description": "Toggle stealth screen-share exclusion (excludeFromCapture) on focused window via Meta+Shift+H",
+        "Id": "macos-stealth-window",
+        "License": "GPL-2.0+",
+        "Name": "macOS Stealth Private Window",
+        "Version": "1.0"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

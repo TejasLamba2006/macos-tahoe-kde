@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# macOS Live Text (OCR + QR scanner) for KDE Plasma Wayland
+set -euo pipefail
+
+TMP_IMG="$(mktemp --suffix=.png /tmp/macos-livetext-XXXXXX)"
+trap 'rm -f "$TMP_IMG"' EXIT
+
+spectacle -b -n -r -o "$TMP_IMG" 2>/dev/null || exit 0
+[[ -s "$TMP_IMG" ]] || exit 0
+
+TEXT=""
+if command -v zbarimg >/dev/null 2>&1; then
+    TEXT="$(zbarimg -q --raw "$TMP_IMG" 2>/dev/null || true)"
+fi
+
+if [[ -z "${TEXT// }" ]]; then
+    LANGS="eng"
+    if tesseract --list-langs 2>/dev/null | grep -qx "hin"; then
+        LANGS="eng+hin"
+    fi
+    TEXT="$(tesseract "$TMP_IMG" - -l "$LANGS" --psm 6 2>/dev/null || true)"
+fi
+
+# Trim leading/trailing blank lines
+TEXT="$(printf '%s' "$TEXT" | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+
+if [[ -n "$TEXT" ]]; then
+    printf '%s' "$TEXT" | wl-copy
+    if [[ -x "$HOME/.local/bin/island-push" ]]; then
+        "$HOME/.local/bin/island-push" --flash --title "Live Text Copied" --icon edit-copy --color blue --duration 2200 2>/dev/null || true
+    fi
+else
+    if [[ -x "$HOME/.local/bin/island-push" ]]; then
+        "$HOME/.local/bin/island-push" --flash --title "No Text Detected" --icon dialog-information --color gray --duration 1800 2>/dev/null || true
+    fi
+fi

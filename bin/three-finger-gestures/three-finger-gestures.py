@@ -71,7 +71,7 @@ COOLDOWN = 0.5      # seconds of dead time after a gesture fires
 STEP_FRACTION = 0.35
 
 ACTIONS = {
-    "up": ("kwin", "Overview"),
+    "up": ("kwin", "MacOSMissionControl"),
     "down": ("kwin", "Show Desktop"),
     "left": ("kwin", "Walk Through Windows"),
     "right": ("kwin", "Walk Through Windows (Reverse)"),
@@ -267,7 +267,8 @@ def overview_active():
              "org.freedesktop.DBus.Properties.Get",
              "org.kde.kwin.Effects", "activeEffects"],
             capture_output=True, text=True, timeout=3)
-        return "overview" in r.stdout.splitlines()
+        active = set(r.stdout.splitlines())
+        return bool(active & {"overview", "macos-mission-control", "macos-mission-control-v2"})
     except (OSError, subprocess.TimeoutExpired):
         return False
 

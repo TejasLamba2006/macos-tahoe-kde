@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "KWin/Effect",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "macOS Tahoe"
+            }
+        ],
+        "Category": "Window Management",
+        "Description": "macOS Mission Control with MRU window sizing and capsule labels",
+        "EnabledByDefault": true,
+        "Id": "macos-mission-control-v2",
+        "License": "GPL-2.0-or-later",
+        "Name": "macOS Mission Control",
+        "Version": "1.0"
+    },
+    "X-KDE-Ordering": 60,
+    "X-KWin-Border-Activate": true,
+    "X-Plasma-API": "declarativescript"
+}

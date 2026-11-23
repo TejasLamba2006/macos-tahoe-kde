@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# macOS Finder Quick Actions helper — safe non-destructive transforms
+set -euo pipefail
+
+ACTION="${1:-}"
+shift || true
+[[ $# -gt 0 ]] || exit 0
+
+unique_out() {
+    local base="$1" ext="$2" candidate="${1}.${2}" n=1
+    while [[ -e "$candidate" ]]; do
+        candidate="${base}-${n}.${ext}"
+        ((n++))
+    done
+    printf '%s' "$candidate"
+}
+
+notify_done() {
+    local msg="$1"
+    if [[ -x "$HOME/.local/bin/island-push" ]]; then
+        "$HOME/.local/bin/island-push" --flash --title "$msg" --icon document-save --color green --duration 2200 2>/dev/null || true
+    fi
+}
+
+case "$ACTION" in
+    convert-png|convert-jpg|convert-webp)
+        ext="${ACTION#convert-}"
+        for f in "$@"; do
+            [[ -f "$f" ]] || continue
+            out="$(unique_out "${f%.*}" "$ext")"
+            magick "$f" "$out"
+        done
+        notify_done "Converted to ${ext^^}"
+        ;;
+    rotate-left)
+        for f in "$@"; do
+            [[ -f "$f" ]] || continue
+            out="$(unique_out "${f%.*}-rotL" "${f##*.}")"
+            magick "$f" -rotate -90 "$out"
+        done
+        notify_done "Rotated Left"
+        ;;
+    rotate-right)
+        for f in "$@"; do
+            [[ -f "$f" ]] || continue
+            out="$(unique_out "${f%.*}-rotR" "${f##*.}")"
+            magick "$f" -rotate 90 "$out"
+        done
+        notify_done "Rotated Right"
+        ;;
+    create-pdf)
+        first="$1"
+        out="$(unique_out "${first%.*}" "pdf")"
+        magick "$@" "$out"
+        notify_done "Created PDF"
+        ;;
+    extract-mp3)
+        for f in "$@"; do
+            [[ -f "$f" ]] || continue
+            out="$(unique_out "${f%.*}" "mp3")"
+            ffmpeg -nostdin -y -i "$f" -vn -acodec libmp3lame -q:a 2 "$out" >/dev/null 2>&1
+        done
+        notify_done "Extracted MP3 Audio"
+        ;;
+    copy-path)
+        printf '%s\n' "$@" | sed '$ s/\n$//' | wl-copy
+        notify_done "Copied Pathname"
+        ;;
+    send-phone)
+        if [[ -x "$HOME/.local/bin/macos-phone-share" ]]; then
+            "$HOME/.local/bin/macos-phone-share" "$@"
+        fi
+        ;;
+esac

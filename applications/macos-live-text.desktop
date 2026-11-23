@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=macOS Live Text OCR
+Exec=@HOME@/.local/bin/macos-live-text
+Icon=scanner
+Type=Application
+NoDisplay=true
+StartupNotify=false
+X-KDE-Shortcuts=Meta+Shift+2,Meta+@

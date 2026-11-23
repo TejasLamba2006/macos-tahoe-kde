@@ -1,24 +1,27 @@
 #include <QResource>
 #include <QString>
 #include <QtQml/qqmlprivate.h>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
 
+static bool bartenderResourceLoaded = false;
 static bool notificationResourceLoaded = false;
+static bool dockResourceLoaded = false;
 
 static bool is_plasmashell() {
     static int cached = -1;
     if (cached != -1) return cached == 1;
-    FILE* f = fopen("/proc/self/comm", "r");
+    FILE* f = std::fopen("/proc/self/comm", "r");
     if (!f) { cached = 0; return false; }
     char comm[64] = {0};
-    if (!fgets(comm, sizeof(comm), f)) {
-        fclose(f);
+    if (!std::fgets(comm, sizeof(comm), f)) {
+        std::fclose(f);
         cached = 0;
         return false;
     }
-    fclose(f);
+    std::fclose(f);
     if (std::strncmp(comm, "plasmashell", 11) == 0) {
         // Clear LD_PRELOAD from environment immediately so child apps spawned by plasmashell
         // (Konsole, Chrome, scripts, etc.) never inherit LD_PRELOAD!
@@ -35,8 +38,9 @@ static void register_bartender_rcc() {
     if (!is_plasmashell()) return;
     const char* home = std::getenv("HOME");
     if (home) {
-        QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/bartender.rcc"));
+        bartenderResourceLoaded = QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/bartender.rcc"));
         notificationResourceLoaded = QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/notification-center.rcc"));
+        dockResourceLoaded = QResource::registerResource(QString::fromUtf8(home) + QStringLiteral("/.local/share/macos-tahoe/dock.rcc"));
     }
 }
 
@@ -49,10 +53,12 @@ int qmlregister(RegistrationType type, void *data) {
         if (hook->lookupCachedQmlUnit) {
             Dl_info info{};
             if (dladdr(reinterpret_cast<void *>(hook->lookupCachedQmlUnit), &info) && info.dli_fname) {
-                if (std::strstr(info.dli_fname, "org.kde.plasma.systemtray.so") ||
-                    std::strstr(info.dli_fname, "org.kde.plasma.digitalclock.so") ||
-                    std::strstr(info.dli_fname, "org.kde.plasma.kickoff.so") ||
-                    (notificationResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.notifications.so"))) {
+                if ((bartenderResourceLoaded && (
+                        std::strstr(info.dli_fname, "org.kde.plasma.systemtray.so") ||
+                        std::strstr(info.dli_fname, "org.kde.plasma.digitalclock.so") ||
+                        std::strstr(info.dli_fname, "org.kde.plasma.kickoff.so"))) ||
+                    (notificationResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.notifications.so")) ||
+                    (dockResourceLoaded && std::strstr(info.dli_fname, "org.kde.plasma.taskmanager.so"))) {
                     return 0;
                 }
             }

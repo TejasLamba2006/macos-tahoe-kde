@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Force Quit Applications
+Exec=@HOME@/.local/bin/macos-force-quit
+Icon=process-stop
+Type=Application
+NoDisplay=true
+StartupNotify=false
+X-KDE-Shortcuts=Meta+Alt+Esc

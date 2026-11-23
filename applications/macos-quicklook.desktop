@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=macOS Quick Look
+Exec=@HOME@/.local/bin/macos-quicklook
+Icon=preview-render
+Type=Application
+NoDisplay=true
+StartupNotify=false
+X-KDE-Shortcuts=Meta+Y

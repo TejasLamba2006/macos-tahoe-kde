@@ -57,7 +57,7 @@ Item {
                 from: 0
                 to: -(label.implicitWidth - marquee.width)
                 duration: label.needsScrolling
-                    ? (label.implicitWidth - marquee.width) * marquee.scrollSpeed
+                    ? Math.max(0, (label.implicitWidth - marquee.width) * marquee.scrollSpeed)
                     : 0
                 easing.type: Easing.Linear
             }
@@ -68,7 +68,7 @@ Item {
                 from: -(label.implicitWidth - marquee.width)
                 to: 0
                 duration: label.needsScrolling
-                    ? (label.implicitWidth - marquee.width) * marquee.scrollSpeed
+                    ? Math.max(0, (label.implicitWidth - marquee.width) * marquee.scrollSpeed)
                     : 0
                 easing.type: Easing.Linear
             }

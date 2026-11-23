@@ -16,6 +16,8 @@ apply_mode() {
                 for (var j = 0; j < w.length; j++) {
                     if (w[j].type === "org.kde.plasma.systemtray") {
                         w[j].currentConfigGroup = ["General"];
+                        var extra = w[j].readConfig("extraItems", []).filter(function(x) { return x !== "org.kde.kdeconnect"; });
+                        w[j].writeConfig("extraItems", extra);
                         w[j].writeConfig("hiddenItems", [
                             "org.kde.plasma.notifications",
                             "org.kde.plasma.clipboard",
@@ -62,6 +64,8 @@ apply_mode() {
                 for (var j = 0; j < w.length; j++) {
                     if (w[j].type === "org.kde.plasma.systemtray") {
                         w[j].currentConfigGroup = ["General"];
+                        var extra = w[j].readConfig("extraItems", []).filter(function(x) { return x !== "org.kde.kdeconnect"; });
+                        w[j].writeConfig("extraItems", extra);
                         w[j].writeConfig("hiddenItems", [
                             "org.kde.plasma.notifications",
                             "org.kde.plasma.clipboard",

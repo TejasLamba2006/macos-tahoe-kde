@@ -142,9 +142,9 @@ Item {
         MenuDivider {}
 
         MenuRow {
-            label: "Force Quit / Activity Monitor…"
+            label: "Force Quit…"
             shortcutText: "⌥⌘⎋"
-            command: "plasma-systemmonitor"
+            command: "@HOME@/.local/bin/macos-force-quit"
         }
 
         MenuDivider {}

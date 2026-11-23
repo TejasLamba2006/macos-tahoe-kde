@@ -1,6 +1,7 @@
 [Unit]
 Description=Three-finger swipe gestures (macOS Mission Control / App Switch)
 PartOf=graphical-session.target
+After=plasma-kwin_wayland.service
 
 [Service]
 ExecStart=/usr/bin/python3 @HOME@/.local/share/three-finger-gestures/three-finger-gestures.py

@@ -1,6 +1,6 @@
 [Unit]
 Description=KRunner D-Bus Bridge to Vicinae
-After=vicinae.service
+After=graphical-session.target vicinae.service
 
 [Service]
 Type=dbus

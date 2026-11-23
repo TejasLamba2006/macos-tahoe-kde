@@ -1,7 +1,7 @@
 [Unit]
 Description=Dynamic macOS Multi-Monitor Top Bar & Dock Sync for KDE Plasma
 PartOf=graphical-session.target
-After=graphical-session.target plasma-plasmashell.service
+After=plasma-plasmashell.service
 
 [Service]
 Type=simple

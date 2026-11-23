@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=all/all;
+Actions=QuickLook;
+X-KDE-Priority=TopLevel
+X-KDE-StartupNotify=false
+
+[Desktop Action QuickLook]
+Name=Quick Look
+Icon=preview-render
+Exec=@HOME@/.local/bin/macos-quicklook %F
